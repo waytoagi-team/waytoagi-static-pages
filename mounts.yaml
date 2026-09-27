@@ -16,7 +16,7 @@ namespaces:
   - prefix: /community-growth-deck/
     status: active     # 2026-09-27 cut over: rule-3vi6zsyyc7tr
   - prefix: /kemengopc/
-    status: pending    # Stage the source before adopting rule-3umlkdq1unp5.
+    status: active     # 2026-09-27 adopted in place: rule-3umlkdq1unp5; shared redirect retained.
 
 mounts:
   - path: /usecase-atlas/opus5-5/

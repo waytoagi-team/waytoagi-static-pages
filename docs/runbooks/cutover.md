@@ -47,3 +47,4 @@ python -m staticpages routes status <新前缀规则> disable
 |-|-|-|-|
 | `/usecase-atlas/` | rule-3vi6scsksy31 | rule-3vfh6xhhtr4n（回源）、rule-3vfh6xhhsck7（跳转） | 2026-09-27 |
 | `/community-growth-deck/` | rule-3vi6zsyyc7tr | rule-3vgmsv329iwc（回源）、rule-3vgmsv3284bw（跳转） | 2026-09-27 |
+| `/kemengopc/` | rule-3umlkdq1unp5（原位接管） | 无；保留共享跳转 rule-3umlkdq1t94p，回滚使用原规则快照 | 2026-09-27 |
