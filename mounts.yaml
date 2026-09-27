@@ -45,7 +45,7 @@ mounts:
     owner: noodles
     source:
       repo: waytoagi-team/waytoagi-community-intro   # private: CI needs SOURCE_GITHUB_TOKEN
-      ref: 1be913d7eb348d333c54518c9fb56b1280049757
+      ref: 669302ff1554a4b9b086c9ffceb160ddd1af5744
       dir: community-growth-deck
     exclude: [README.md]   # repo docs, not part of the deck
     smoke:
