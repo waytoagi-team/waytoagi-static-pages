@@ -73,7 +73,7 @@ mounts:
     owner: noodles
     source:
       repo: waytoagi-team/d20
-      ref: f8547326c690038e14227c5bceeb26dcb4935285
+      ref: f6f2974368f33b672d2acbf477eea153733eeadb
       dir: ""
     exclude: [README.md, DEPLOYMENT.md, speaker-script.md]
     smoke:
