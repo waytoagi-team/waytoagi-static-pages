@@ -82,34 +82,51 @@ def desired_media_rule(manifest, with_secret=True):
     }
 
 
-def _strip_secrets(obj):
+def _without_keys(obj, keys):
     if isinstance(obj, dict):
-        return {k: _strip_secrets(v) for k, v in obj.items() if k != "PrivateParameters"}
+        return {k: _without_keys(v, keys) for k, v in obj.items() if k not in keys}
     if isinstance(obj, list):
-        return [_strip_secrets(v) for v in obj]
+        return [_without_keys(v, keys) for v in obj]
     return obj
 
 
+def _strip_secrets(obj):
+    """Logging policy; keep it separate from desired-state comparison."""
+    return _without_keys(obj, {"AccessKeyId", "SecretAccessKey"})
+
+
 def _comparable(rule):
-    return _strip_secrets({k: rule.get(k) for k in ("RuleName", "Description", "Status", "Branches")})
+    # DescribeL7AccRules masks SecretAccessKey. Compare the key ID and signing settings;
+    # use --refresh-media-credentials to explicitly rewrite a masked secret.
+    return _without_keys({k: rule.get(k) for k in ("RuleName", "Description", "Status", "Branches")},
+                         {"SecretAccessKey"})
 
 
 def current_rules(manifest, cli):
     return cli.call_json("DescribeL7AccRules", {"ZoneId": manifest.zone_id, "Limit": 1000})["Response"]["Rules"]
 
 
-def plan(manifest, cli=None):
+def plan(manifest, cli=None, *, only=None, refresh_media_credentials=False):
+    def selected(rule):
+        return not only or only in rule["RuleName"]
+
+    media_want = desired_media_rule(manifest, with_secret=False) if manifest.media else None
+    media_selected = media_want is not None and selected(media_want)
+    if refresh_media_credentials and not media_selected:
+        raise SystemExit("--refresh-media-credentials requires a configured media rule selected by --only")
     cli = cli or teo(creds.router())
     rules = current_rules(manifest, cli)
     by_name = {r["RuleName"]: r for r in rules}
     actions, notes = [], []
-    if manifest.media:
-        want = desired_media_rule(manifest, with_secret=False)
+    if media_selected:
+        want = desired_media_rule(manifest)
         have = by_name.get(want["RuleName"])
-        if not have or _comparable(have) != _comparable(want):
-            actions.append(("create" if not have else "modify", desired_media_rule(manifest), have))
+        if not have or refresh_media_credentials or _comparable(have) != _comparable(want):
+            actions.append(("create" if not have else "modify", want, have))
     for ns in manifest.namespaces:
         want = desired_rule(manifest, ns["prefix"])
+        if not selected(want):
+            continue
         have = by_name.get(want["RuleName"])
         if not have:
             actions.append(("create", want, None))

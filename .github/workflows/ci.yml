@@ -28,10 +28,10 @@ jobs:
           # Read-only access to private source repos. Not available to PRs from forks.
           SOURCE_GITHUB_TOKEN: ${{ secrets.SOURCE_GITHUB_TOKEN }}
 
-      - name: gitleaks (dist/)
+      - name: gitleaks (Pages and OSS candidates)
         run: |
           curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz | tar xz gitleaks
-          ./gitleaks dir dist --no-banner --redact
+          python -m staticpages scan-secrets --gitleaks ./gitleaks
 
       - uses: actions/upload-artifact@v4
         with:

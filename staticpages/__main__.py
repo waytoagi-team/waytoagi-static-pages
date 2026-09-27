@@ -2,6 +2,7 @@
 
   python -m staticpages validate            check mounts.yaml
   python -m staticpages build [--smoke]     assemble dist/ + static checks (+ browser smoke)
+  python -m staticpages scan-secrets       Gitleaks on the built Pages and OSS files
   python -m staticpages plan                build, then show which mounts differ from the live origin
   python -m staticpages deploy [--force]    build, deploy, verify origin, purge + verify www, regress, notify
   python -m staticpages verify              re-verify origin / www / regression without deploying
@@ -44,7 +45,7 @@ def summary(lines):
 def build(m, smoke=False):
     print("assemble:")
     state = assemble.assemble(m, DIST)
-    errors = checks.run(m, DIST)
+    errors = checks.run(m, DIST, state)
     if errors:
         fail("static checks failed", errors)
     print("static checks: ok")
@@ -172,9 +173,7 @@ def cmd_routes(m, args):
     if args.action == "status":
         print(routes.set_status(m, args.rule_id, args.status))
         return
-    actions, notes = routes.plan(m)
-    if args.only:
-        actions = [a for a in actions if args.only in a[1]["RuleName"]]
+    actions, notes = routes.plan(m, only=args.only, refresh_media_credentials=args.refresh_media_credentials)
     for kind, want, have in actions:
         print(f"{kind}: {want['RuleName']}" + (f" ({have['RuleId']})" if have else ""))
         print(json.dumps(routes._strip_secrets(want), ensure_ascii=False, indent=2))
@@ -192,6 +191,8 @@ def main():
     ap.add_argument("--origin-url", help="override https://<origin> (e.g. the .edgeone.cool preset domain)")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("validate")
+    s = sub.add_parser("scan-secrets", help="scan built Pages and OSS files with Gitleaks")
+    s.add_argument("--gitleaks", default="gitleaks", help="Gitleaks executable")
     for name in ("build", "plan", "deploy", "verify"):
         p = sub.add_parser(name)
         if name != "verify":
@@ -205,11 +206,15 @@ def main():
     r.add_argument("rule_id", nargs="?", help="status: rule to change, e.g. rule-3vfh6xhhtr4n")
     r.add_argument("status", nargs="?", choices=["enable", "disable"])
     r.add_argument("--only", help="plan/apply only rules whose name contains this text, e.g. '/_media/'")
+    r.add_argument("--refresh-media-credentials", action="store_true",
+                   help="rewrite the selected media rule's credentials, even when the API masks the secret")
     args = ap.parse_args()
 
     m = manifest_mod.load()
     if args.cmd == "validate":
         print(f"mounts.yaml ok: {len(m.namespaces)} namespaces, {len(m.mounts)} mounts")
+    elif args.cmd == "scan-secrets":
+        checks.scan_secrets(DIST, args.gitleaks)
     elif args.cmd == "build":
         build(m, smoke=args.smoke)
     elif args.cmd == "plan":
@@ -221,6 +226,8 @@ def main():
     elif args.cmd == "updates":
         cmd_updates(m, args)
     elif args.cmd == "routes":
+        if args.action == "status" and args.refresh_media_credentials:
+            ap.error("--refresh-media-credentials requires routes plan or apply")
         if args.action == "status" and not (args.rule_id and args.status):
             ap.error("routes status needs RULE_ID enable|disable")
         cmd_routes(m, args)

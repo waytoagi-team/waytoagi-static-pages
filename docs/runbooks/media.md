@@ -16,6 +16,8 @@ www /_media/* → EdgeOne L7 规则（routes 管理）→ 私有 OSS（S3 协议
 - 文件名就是内容哈希：内容一变，URL 就变，**永远不需要清缓存**。回滚时旧对象还在，跳转会自动指回去。
 - 跳转目标写成绝对的 www 地址，因为 `/_media/*` 规则只在 www 上存在。
 - 浏览器缓存头来自 OSS 对象元数据。EdgeOne 的 `ModifyResponseHeader` 对 AWSS3 源站不生效（2026-09-27 验证）。
+- `build` 的敏感内容检查覆盖 Pages 文件和本次转存的 OSS 文件，25MB 限制只检查 Pages 文件。CI 和部署还执行 `python -m staticpages scan-secrets --gitleaks ./gitleaks`，扫描 `dist/` 及构建清单引用的 OSS 缓存文件，不设置扫描文件大小上限。
+- `media.prefix` 不能使用主站保留路径（如 `/api/`、`/_next/`、`/static/`），也不能与已登记 namespace 重叠。
 
 ## 放不进 git 的文件（大于 100MB，或已经在别的 OSS 上）
 
@@ -43,6 +45,19 @@ python -m staticpages routes apply --only /_media/
 ```
 
 EdgeOne 对 AWSS3 源站的限制：不能带端口字段，也不能写 `OriginProtocol`（写 https 就会要求带端口）。免费套餐规则上限是 20 条。
+
+### 轮换回源凭证
+
+先更新 `routes` environment 的 `ALIYUN_MEDIA_ORIGIN_KEY_ID` 和 `ALIYUN_MEDIA_ORIGIN_KEY_SECRET`。规则比较会检查 AccessKey ID、Region 和 SignatureVersion；日志不会输出 ID 或 Secret。
+
+EdgeOne 查询接口会遮蔽 SecretAccessKey，因此需要显式刷新才能保证 Secret 被写入：
+
+```bash
+python -m staticpages routes plan --only /_media/ --refresh-media-credentials
+python -m staticpages routes apply --only /_media/ --refresh-media-credentials
+```
+
+GitHub `routes` 工作流同样提供 `refresh_media_credentials` 选项，配合 `only=/_media/`，先运行 `plan`，再运行 `apply`。本地执行时须先更新环境变量或 `.keys/static-pages-media-origin.csv`。确认新凭证回源成功后再撤销旧凭证；已有缓存的 `200` 响应不能证明新凭证有效，应使用尚未经过 CDN 缓存的对象验证。
 
 ## 排查
 

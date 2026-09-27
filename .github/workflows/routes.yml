@@ -14,6 +14,10 @@ on:
         description: Only rules whose name contains this text (e.g. /_media/); empty = all
         type: string
         default: ""
+      refresh_media_credentials:
+        description: Rewrite the selected media rule's origin credentials (for secret rotation)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -33,8 +37,17 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt
-      - run: python -m staticpages routes ${{ inputs.action }} ${{ inputs.only && format('--only {0}', inputs.only) || '' }}
+      - name: Plan or apply routes
+        shell: bash
+        run: |
+          args=("$ROUTES_ACTION")
+          if [[ -n "$ROUTES_ONLY" ]]; then args+=("--only=$ROUTES_ONLY"); fi
+          if [[ "$ROUTES_REFRESH_MEDIA_CREDENTIALS" == "true" ]]; then args+=(--refresh-media-credentials); fi
+          python -m staticpages routes "${args[@]}"
         env:
+          ROUTES_ACTION: ${{ inputs.action }}
+          ROUTES_ONLY: ${{ inputs.only }}
+          ROUTES_REFRESH_MEDIA_CREDENTIALS: ${{ inputs.refresh_media_credentials }}
           TENCENTCLOUD_ROUTER_SECRET_ID: ${{ secrets.TENCENTCLOUD_ROUTER_SECRET_ID }}
           TENCENTCLOUD_ROUTER_SECRET_KEY: ${{ secrets.TENCENTCLOUD_ROUTER_SECRET_KEY }}
           # Read-only OSS key written into the /_media/* origin rule.
