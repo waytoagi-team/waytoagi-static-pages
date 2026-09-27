@@ -39,12 +39,12 @@ python -m staticpages routes status <新前缀规则> disable
 
 ## 收尾
 
-稳定运行一段时间后（建议一周），删除已停用的旧规则。router key 没有删除权限，需要用 `TencentCloudSecretKey` 或在控制台删除。旧源站仓库里对应的子目录也一并删除。
+稳定运行一段时间后（建议一周），删除已停用的旧规则。**已停用的规则仍会被人重新启用**（2026-09-27 就发生过），而且它们占用免费套餐 20 条的配额，所以确认稳定后尽早删除。router key 没有删除权限，需要用 `TencentCloudSecretKey` 或在控制台删除。旧源站仓库里对应的子目录也一并删除。
 
 ## 记录
 
 | 前缀 | 新规则 | 已停用的旧规则 | 切换时间 |
 |-|-|-|-|
-| `/usecase-atlas/` | rule-3vi6scsksy31 | rule-3vfh6xhhtr4n（回源）、rule-3vfh6xhhsck7（跳转） | 2026-09-27 |
-| `/community-growth-deck/` | rule-3vi6zsyyc7tr | rule-3vgmsv329iwc（回源）、rule-3vgmsv3284bw（跳转） | 2026-09-27 |
+| `/usecase-atlas/` | rule-3vi6scsksy31 | rule-3vfh6xhhtr4n（回源）、rule-3vfh6xhhsck7（跳转）：2026-09-27 已**删除**（有人按旧手册重新启用过，删除以免误导） | 2026-09-27 |
+| `/community-growth-deck/` | rule-3vi6zsyyc7tr | rule-3vgmsv329iwc（回源）、rule-3vgmsv3284bw（跳转）：2026-09-27 已**删除**（为 `/_media/*` 规则腾出配额） | 2026-09-27 |
 | `/kemengopc/` | rule-3umlkdq1unp5（原位接管） | 无；保留共享跳转 rule-3umlkdq1t94p，回滚使用原规则快照 | 2026-09-27 |
