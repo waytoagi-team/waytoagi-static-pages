@@ -1,0 +1,43 @@
+name: updates
+
+# Hourly: find mounts whose source dir has commits newer than the pinned ref and open / refresh one bump PR
+# per mount (branch auto-bump/<mount>). Nothing is merged automatically.
+#
+# PR author: secret BUMP_GITHUB_TOKEN (fine-grained PAT / app token, this repo only, Contents + Pull requests
+# read/write) so the PR triggers ci normally. Without it, GITHUB_TOKEN is used and ci is dispatched by hand;
+# that requires the org setting "Allow GitHub Actions to create and approve pull requests".
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+concurrency:
+  group: updates
+  cancel-in-progress: false
+
+jobs:
+  updates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.BUMP_GITHUB_TOKEN || github.token }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - run: python -m staticpages updates --open-prs
+        env:
+          SOURCE_GITHUB_TOKEN: ${{ secrets.SOURCE_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.BUMP_GITHUB_TOKEN || github.token }}
+          DISPATCH_CI: ${{ secrets.BUMP_GITHUB_TOKEN == '' && '1' || '0' }}
