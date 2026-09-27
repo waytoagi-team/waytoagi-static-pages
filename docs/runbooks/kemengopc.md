@@ -14,9 +14,19 @@
 
 ## 回滚
 
+如果旧域名首页跳转已启用，**先撤销旧项目的 `middleware.js` 并等待其生产部署完成**，确认 `https://kemengopc.waytoagi.com/` 和 `/index.html` 直接返回 200 后，再恢复以下回源规则。否则 www 回源旧站时会收到跳回自身的 301。
+
 从切换前快照提取 `rule-3umlkdq1unp5`，使用其 `RuleId`、`RuleName`、`Description`、`Status` 和 `Branches` 调用 `ModifyL7AccRule` 恢复原规则（包含旧回源、Host 与前缀重写）；不要把只读的优先级字段提交给修改接口。再次清理 `/kemengopc/` 前缀缓存，验证正式地址回到旧源站，并将 namespace 改回 `pending`。只 revert 清单不能恢复路由；回滚后不要运行 `routes apply`，它会按清单重新创建新源站规则。
 
 保留旧 `kemengopc.waytoagi.com` 站点及根目录文件作为回退入口。共享跳转规则始终保留。
+
+## 旧域名首页重定向
+
+由旧源仓库 [waytoagi-community-intro 的 middleware.js](https://github.com/waytoagi-team/waytoagi-community-intro/blob/main/middleware.js) 管理，通过旧 Pages 项目 `makers-2rs9t5wqaiwt` 的 Git 部署发布。只匹配 Host `kemengopc.waytoagi.com` 的 `/` 和 `/index.html`，301 到 `https://www.waytoagi.com/kemengopc/`，原始查询参数完整保留；其他 Host、图片、历史 HTML 与子目录继续放行。
+
+该中间件不属于共享站点的发布资源，清单明确排除 `middleware.js`，避免后续 bump 引入旧项目的路由配置。www 仍使用 `static-origin.waytoagi.com` 回源。
+
+实现采用 [Pages 中间件](https://cloud.tencent.com/document/product/1552/127609)；`edgeone.json` 静态跳转在此前测试中会丢失查询参数。旧域名所属 Pages zone 的通用 L7 规则虽可创建，但本次实际请求未生效，测试规则已删除，未留下第二套跳转配置。
 
 ## 后续更新
 
