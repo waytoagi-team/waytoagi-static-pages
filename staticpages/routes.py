@@ -138,8 +138,9 @@ def plan(manifest, cli=None, *, only=None, refresh_media_credentials=False):
                 continue
             cond = json.dumps(r.get("Branches"), ensure_ascii=False)
             if f"'{manifest.host}'" in cond and ns["prefix"] in cond:
-                notes.append(f"legacy rule {r['RuleId']} ({r['RuleName']}, priority {r['RulePriority']}) "
-                             f"also matches {ns['prefix']}; retire it after verifying the namespace rule")
+                notes.append(f"overlapping rule {r['RuleId']} ({r['RuleName']}, priority {r['RulePriority']}) "
+                             f"also matches {ns['prefix']}; preserve required redirects and retire only "
+                             "origin rules that this namespace replaces")
     return actions, notes
 
 

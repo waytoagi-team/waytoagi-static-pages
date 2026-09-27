@@ -16,6 +16,13 @@ class _QuietHandler(http.server.SimpleHTTPRequestHandler):
         local = self.media.get(unquote(urlparse(path).path))
         return str(local) if local else super().translate_path(path)
 
+    def copyfile(self, source, outputfile):
+        try:
+            super().copyfile(source, outputfile)
+        except (BrokenPipeError, ConnectionResetError):
+            # Browsers stop a media response after reading enough preload data, or on page close.
+            pass
+
 
 def _serve(directory, media=None):
     _QuietHandler.media = media or {}
@@ -68,7 +75,11 @@ def _check_mount(browser, base, m):
             (problems if same_origin(resp.url) else external).append(f"{resp.status} {resp.url}")
 
     def on_failed(req):
-        (problems if same_origin(req.url) else external).append(f"failed {req.url}")
+        # Video preload/pause may cancel an otherwise successful transfer. Keep HTTP errors,
+        # real media network failures, and every failed non-media request as failures.
+        if req.resource_type == "media" and req.failure == "net::ERR_ABORTED":
+            return
+        (problems if same_origin(req.url) else external).append(f"failed {req.url}: {req.failure}")
 
     page.on("response", on_response)
     page.on("requestfailed", on_failed)

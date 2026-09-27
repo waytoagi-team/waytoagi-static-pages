@@ -28,6 +28,8 @@ namespaces:
     status: active     # 2026-09-27 cut over: rule-3vi6zsyyc7tr
   - prefix: /kemengopc/
     status: active     # 2026-09-27 adopted in place: rule-3umlkdq1unp5; shared redirect retained.
+  - prefix: /d20/
+    status: active     # 2026-09-27 adopted in place: rule-3tbtnbo8njz2; shared entry redirects retained.
 
 mounts:
   - path: /usecase-atlas/opus5-5/
@@ -66,3 +68,16 @@ mounts:
     smoke:
       - expect: { selector: "#deck > section.slide", min: 28 }
       - expect: { selector: "#nav button.dot", min: 28 }
+
+  - path: /d20/
+    owner: noodles
+    source:
+      repo: waytoagi-team/d20
+      ref: f8547326c690038e14227c5bceeb26dcb4935285
+      dir: ""
+    exclude: [README.md, DEPLOYMENT.md, speaker-script.md]
+    smoke:
+      - expect: { selector: "#deck > section.slide", min: 32 }
+      - expect: { selector: "video", min: 11 }
+      - expect: { selector: "#prev", min: 1 }
+      - expect: { selector: "#next", min: 1 }
