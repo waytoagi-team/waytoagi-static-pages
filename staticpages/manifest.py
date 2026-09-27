@@ -86,6 +86,8 @@ def validate(m):
             errors.append(f"media: missing {sorted(missing)}")
         elif not MEDIA_PREFIX_RE.match(m.media["prefix"]) or any(m.media["prefix"].startswith(p) or p.startswith(m.media["prefix"]) for p in prefixes):
             errors.append(f"media.prefix {m.media['prefix']!r}: must look like /name/ and not overlap a namespace")
+        if m.media.get("prefix") in RESERVED:
+            errors.append(f"media.prefix {m.media['prefix']!r}: reserved by the main site")
 
     seen = []
     for mt in m.mounts:
