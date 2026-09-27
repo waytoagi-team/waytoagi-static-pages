@@ -21,3 +21,12 @@
 ## 后续更新
 
 源仓库按原方式维护内容，本仓库的 `updates` workflow 自动提出 SHA bump PR，CI 通过并合并后部署到正式路径。根目录源会跟踪源仓库所有提交；其他子目录的修改也可能触发 bump PR，部署阶段仍按排除后的发布文件哈希判断内容是否变化。
+
+## 2026-09-27 切换记录
+
+- 源码：`waytoagi-team/waytoagi-community-intro@4333ddbb1a914f6d4e6e1f206fb0b9c45aa9d7d9` 根目录，72 个发布文件；旧源站、新源站和正式地址逐文件 SHA-256 一致。
+- 部署：`dpvb0aur8njn`，由 [GitHub deploy run 36311162831](https://github.com/waytoagi-team/waytoagi-static-pages/actions/runs/36311162831) 发布并验证成功。
+- 18:06（UTC+8）原位接管 `rule-3umlkdq1unp5`；其余 19 条规则内容未变。清缓存仅针对 `https://www.waytoagi.com/kemengopc/`，任务 `3vi9rpip8mca` 成功。
+- 18:09（UTC+8）验收通过：三个挂载的正式首页与补斜杠、主站 `/`、`/zh`、`/events`、HTTPS/www 跳转及查询参数保留；旧源站独有的 `preview-contact-sheet.png` 在正式路径返回 404，确认已走新源站。
+- 新源站桌面与手机浏览器检查：28 页导航正常，图片损坏 0、JavaScript 错误 0。
+- 回滚快照保存在维护者本地 `docs/internal/snapshots/kemengopc-before-20260927T095819Z.json`，详细执行记录在 `.state/kemengopc-cutover.json`；旧源站继续保留。
