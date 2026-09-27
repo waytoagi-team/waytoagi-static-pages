@@ -55,7 +55,7 @@ mounts:
     owner: noodles
     source:
       repo: waytoagi-team/waytoagi-community-intro
-      ref: 4333ddbb1a914f6d4e6e1f206fb0b9c45aa9d7d9
+      ref: 26581469062802e89717a7b455584f58f962ad75
       dir: ""           # git archive <sha>: selects the repository root; "." does not.
     exclude:
       - community-growth-deck/
