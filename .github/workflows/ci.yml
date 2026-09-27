@@ -2,6 +2,8 @@ name: ci
 
 on:
   pull_request:
+  # Bump PRs opened by the updates workflow (GITHUB_TOKEN) do not trigger pull_request; it dispatches ci instead.
+  workflow_dispatch:
 
 permissions:
   contents: read

@@ -29,6 +29,8 @@ sites/<name> ─┴─ mounts.yaml ──assemble──▶ dist/ ──EdgeOne P
 
 **回滚**：`git revert` 对应的清单变更并合并，走同一条流水线。
 
+**自动检查更新**：`updates` workflow 每小时检查一次各外部源目录，有比锁定 `ref` 更新的提交时，为该页面开一个 bump PR（分支 `auto-bump/<页面>`）；源目录再次更新时原地刷新同一个 PR，并触发 `ci`。PR 不会自动合并，看过 CI 结果后手动合并，合并即部署。本地可运行 `python -m staticpages updates` 查看。
+
 ## 新增前缀（需要审批）
 
 1. 在 `mounts.yaml` 的 `namespaces` 里加 `{ prefix: /xxx/, status: pending }`，然后合并。
@@ -57,6 +59,7 @@ python -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/p
 | `TENCENTCLOUD_ROUTER_SECRET_ID/KEY` | `.keys/static-pages-router.csv` | L7 规则（仅 `routes`） |
 | `FEISHU_WEBHOOK` | — | 部署记录通知（可选） |
 | `SOURCE_GITHUB_TOKEN` | 本地用 `gh auth token` | 只读拉取私有源仓库（例如 waytoagi-community-intro） |
+| `BUMP_GITHUB_TOKEN` | — | `updates` workflow 创建 bump PR（本仓库 Contents + Pull requests 读写） |
 | `ORIGIN_URL`（GitHub variable） | `--origin-url` | 覆盖源站地址，自定义域名绑定前用预设域名 |
 
 ## GitHub 配置

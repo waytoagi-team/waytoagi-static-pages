@@ -5,6 +5,7 @@
   python -m staticpages plan                build, then show which mounts differ from the live origin
   python -m staticpages deploy [--force]    build, deploy, verify origin, purge + verify www, regress, notify
   python -m staticpages verify              re-verify origin / www / regression without deploying
+  python -m staticpages updates [--open-prs] sources with commits newer than the pinned ref (bump PRs)
   python -m staticpages routes plan|apply   www L7 rules for namespaces
   python -m staticpages routes status RULE_ID enable|disable   retire / restore a rule reversibly
 """
@@ -138,6 +139,24 @@ def cmd_verify(m, args):
     print(f"verified: origin {base}; www {live or '(no active mounts)'}; regression ok")
 
 
+def cmd_updates(m, args):
+    from . import updates
+
+    items = updates.check(m)
+    lines = ["### source updates", ""]
+    for it in items:
+        mark = "up to date" if it["status"] == "identical" else f"{it['status']} by {it['ahead_by']}"
+        lines.append(f"- `{it['path']}` {it['repo']}@{it['ref'][:7]} → {it['latest'][:7]} ({mark}) {it['subject']}")
+    print("\n".join(lines))
+    summary(lines)
+    odd = [it for it in items if it["status"] not in ("identical", "ahead")]
+    for it in odd:
+        print(f"warning: {it['path']} pinned ref is {it['status']} relative to {it['branch']}; not bumping")
+    if args.open_prs:
+        for line in updates.open_prs(items):
+            print(line)
+
+
 def cmd_routes(m, args):
     from . import routes
 
@@ -168,6 +187,8 @@ def main():
             p.add_argument("--smoke", action="store_true", help="run the browser smoke test")
         if name == "deploy":
             p.add_argument("--force", action="store_true", help="deploy and verify every mount even if unchanged")
+    u = sub.add_parser("updates", help="check sources for commits newer than the pinned refs")
+    u.add_argument("--open-prs", action="store_true", help="open / refresh one bump PR per outdated mount")
     r = sub.add_parser("routes")
     r.add_argument("action", choices=["plan", "apply", "status"])
     r.add_argument("rule_id", nargs="?", help="status: rule to change, e.g. rule-3vfh6xhhtr4n")
@@ -185,6 +206,8 @@ def main():
         cmd_deploy(m, args)
     elif args.cmd == "verify":
         cmd_verify(m, args)
+    elif args.cmd == "updates":
+        cmd_updates(m, args)
     elif args.cmd == "routes":
         if args.action == "status" and not (args.rule_id and args.status):
             ap.error("routes status needs RULE_ID enable|disable")
