@@ -87,7 +87,8 @@ docs/                  # 设计与实施记录
 - www 上每个前缀一条 Host + Path 回源规则，初始为 `/usecase-atlas/*` 和 `/p/*`。
 - 308 补斜杠由 Pages 的 `edgeone.json` redirects 完成，不再每页一条规则。
 - 新增前缀时由 `scripts/routes` 通过腾讯云 API 幂等执行：先 dry-run 输出差异，经 GitHub Environment 人工审批后应用。
-- 代价：前缀内不存在的路径返回 Pages 的 404，而不是主站 404；不带斜杠的地址 308 后丢查询参数（已接受）。
+- 代价：前缀内不存在的路径返回 Pages 的 404，而不是主站 404。不带斜杠的地址由 www 统一补斜杠规则 308，保留查询参数。
+- EdgeOne 免费套餐 L7 规则上限 20 条：每个前缀 1 条，`/_media/*` 1 条；旧规则确认稳定后要尽快删除。
 
 ### 3. 流水线（GitHub Actions）
 
@@ -128,4 +129,4 @@ CAM 策略 JSON 见 [runbooks/create-credentials.md](runbooks/create-credentials
 - [ ] `community-growth-deck` 属于社区介绍站（不动）还是挂载页（一起迁）
 - [x] 源站域名：`static-origin.waytoagi.com`
 - [x] EdgeOne Pages CLI 部署能返回 deploymentId（实测 `dpiu7a79upmi`、`dpt6iiyficen`）
-- [x] Pages 308 跳转丢查询参数：接受（2026-09-27）。只有不带斜杠的地址受影响，规范链接都带斜杠
+- [x] Pages 308 跳转丢查询参数：接受（2026-09-27）。之后 www 的统一补斜杠 L7 规则（kemengopc 迁移时加入）在 EdgeOne 层 308 并保留查询参数，问题已不存在
