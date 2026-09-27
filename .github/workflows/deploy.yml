@@ -52,6 +52,8 @@ jobs:
           TENCENTCLOUD_DEPLOYER_SECRET_KEY: ${{ secrets.TENCENTCLOUD_DEPLOYER_SECRET_KEY }}
           FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
           SOURCE_GITHUB_TOKEN: ${{ secrets.SOURCE_GITHUB_TOKEN }}
+          ALIYUN_MEDIA_UPLOAD_KEY_ID: ${{ secrets.ALIYUN_MEDIA_UPLOAD_KEY_ID }}
+          ALIYUN_MEDIA_UPLOAD_KEY_SECRET: ${{ secrets.ALIYUN_MEDIA_UPLOAD_KEY_SECRET }}
 
       - uses: actions/upload-artifact@v4
         if: always()

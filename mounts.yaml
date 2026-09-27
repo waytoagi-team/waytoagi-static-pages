@@ -10,6 +10,17 @@ pages_project: waytoagi-static-pages  # ProjectId makers-obe4szcie7gs
 # status:
 #   pending  规则还没切到本源站：部署后只验证源站，不清 www 缓存，也不验证正式地址
 #   active   规则已切：部署后清对应挂载的 www 缓存并验证正式地址
+# Files that are too large for EdgeOne Pages (or listed in `always`) are uploaded to OSS under
+# <prefix><sha256>.<ext> and their original path 302-redirects there. www serves <prefix>* from the
+# bucket through one L7 rule (routes), so the redirect stays same-origin (no CORS, www certificate).
+media:
+  prefix: /_media/
+  bucket: waytoagi-static-pages-media
+  endpoint: oss-cn-hangzhou.aliyuncs.com
+  region: cn-hangzhou
+  min_bytes: 20000000        # EdgeOne Pages rejects files over 25MB
+  always: ["*.mp4", "*.mov", "*.webm"]
+
 namespaces:
   - prefix: /usecase-atlas/
     status: active     # 2026-09-27 cut over: rule-3vi6scsksy31

@@ -37,3 +37,24 @@ def deployer():
 def router():
     """CAM user static-pages-router: read / create / modify L7 rules."""
     return _tencent("TENCENTCLOUD_ROUTER", "static-pages-router.csv")
+
+
+def _aliyun(env_prefix, key_file):
+    kid, secret = os.environ.get(f"{env_prefix}_KEY_ID"), os.environ.get(f"{env_prefix}_KEY_SECRET")
+    if not (kid and secret) and (KEYS / key_file).exists():
+        with open(KEYS / key_file, encoding="utf-8-sig") as f:
+            row = next(csv.DictReader(f))
+        kid, secret = row["AccessKey ID"], row["AccessKey Secret"]
+    if not (kid and secret):
+        raise SystemExit(f"missing {env_prefix}_KEY_ID / {env_prefix}_KEY_SECRET")
+    return kid, secret
+
+
+def media_upload():
+    """RAM user static-pages-media-upload: PutObject / GetObject on <bucket>/_media/*."""
+    return _aliyun("ALIYUN_MEDIA_UPLOAD", "static-pages-media-upload.csv")
+
+
+def media_origin():
+    """RAM user static-pages-media-origin: GetObject only; stored in the EdgeOne L7 origin (routes)."""
+    return _aliyun("ALIYUN_MEDIA_ORIGIN", "static-pages-media-origin.csv")

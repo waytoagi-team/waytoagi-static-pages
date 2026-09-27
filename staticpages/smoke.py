@@ -2,25 +2,39 @@
 import functools
 import http.server
 import threading
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 
 class _QuietHandler(http.server.SimpleHTTPRequestHandler):
+    # URL path -> local file for offloaded media (production 302s them to www /_media/, not reachable here).
+    media = {}
+
     def log_message(self, *args):
         pass
 
+    def translate_path(self, path):
+        local = self.media.get(unquote(urlparse(path).path))
+        return str(local) if local else super().translate_path(path)
 
-def _serve(directory):
+
+def _serve(directory, media=None):
+    _QuietHandler.media = media or {}
     handler = functools.partial(_QuietHandler, directory=str(directory))
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     return server
 
 
-def run(out, mounts):
+def run(out, mounts, state=None):
     from playwright.sync_api import sync_playwright
 
-    server = _serve(out)
+    from .assemble import MEDIA_CACHE
+
+    media = {}
+    for path, mount in (state or {}).get("mounts", {}).items():
+        for rel, e in mount.get("offloaded", {}).items():
+            media[path + rel] = MEDIA_CACHE / e["key"].rsplit("/", 1)[-1]
+    server = _serve(out, media)
     base = f"http://127.0.0.1:{server.server_address[1]}"
     errors = []
     try:

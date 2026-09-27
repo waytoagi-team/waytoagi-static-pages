@@ -51,7 +51,7 @@ def build(m, smoke=False):
     if smoke:
         from . import smoke as smoke_mod
 
-        errors = smoke_mod.run(DIST, m.mounts)
+        errors = smoke_mod.run(DIST, m.mounts, state)
         if errors:
             fail("smoke test failed", errors)
         print("smoke: ok")
@@ -83,11 +83,18 @@ def cmd_deploy(m, args):
         return
     print(f"changed: {d['changed']}  removed: {d['removed']}")
 
+    if m.media:
+        from . import media
+
+        uploaded = media.upload_missing(m, state)
+        print(f"media: uploaded {len(uploaded)} new object(s) to {m.media['bucket']}" + (f": {uploaded}" if uploaded else ""))
+
     dep = edgeone.deploy(m, DIST)
     print(f"deployed: {dep['deploymentId']} (production, in use)")
 
     changed = d["changed"] if not args.force else [mt.path for mt in m.mounts]
     errors = verify.verify_files(base, state, changed, bust=dep["deploymentId"])
+    errors += verify.verify_offloaded(base, m.host, state, changed)
     if errors:
         fail("origin does not match dist/", errors)
     print(f"origin verified: {base}")
@@ -100,6 +107,7 @@ def cmd_deploy(m, args):
         print(f"purged {purge_urls}: job {job}")
 
     errors = verify.verify_prod(m.host, state, live) + verify.regression(m.host)
+    errors += verify.verify_offloaded(f"https://{m.host}", m.host, state, live)
     if errors:
         fail("www verification failed", errors)
     print(f"www verified: {live or '(no active mounts changed)'}; regression ok")
@@ -132,6 +140,7 @@ def cmd_verify(m, args):
     state = build(m)
     base = origin_url(m, args)
     errors = verify.verify_files(base, state, [mt.path for mt in m.mounts], bust="verify")
+    errors += verify.verify_offloaded(base, m.host, state, [mt.path for mt in m.mounts])
     live = [mt.path for mt in m.mounts if m.is_live(mt)]
     errors += verify.verify_prod(m.host, state, live) + verify.regression(m.host)
     if errors:
@@ -164,9 +173,11 @@ def cmd_routes(m, args):
         print(routes.set_status(m, args.rule_id, args.status))
         return
     actions, notes = routes.plan(m)
+    if args.only:
+        actions = [a for a in actions if args.only in a[1]["RuleName"]]
     for kind, want, have in actions:
         print(f"{kind}: {want['RuleName']}" + (f" ({have['RuleId']})" if have else ""))
-        print(json.dumps(want, ensure_ascii=False, indent=2))
+        print(json.dumps(routes._strip_secrets(want), ensure_ascii=False, indent=2))
     for n in notes:
         print(f"note: {n}")
     if not actions:
@@ -193,6 +204,7 @@ def main():
     r.add_argument("action", choices=["plan", "apply", "status"])
     r.add_argument("rule_id", nargs="?", help="status: rule to change, e.g. rule-3vfh6xhhtr4n")
     r.add_argument("status", nargs="?", choices=["enable", "disable"])
+    r.add_argument("--only", help="plan/apply only rules whose name contains this text, e.g. '/_media/'")
     args = ap.parse_args()
 
     m = manifest_mod.load()

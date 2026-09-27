@@ -10,6 +10,7 @@ MANIFEST = ROOT / "mounts.yaml"
 
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 PATH_RE = re.compile(r"^/(?:[a-z0-9][a-z0-9._-]*/)+$")
+MEDIA_PREFIX_RE = re.compile(r"^/_?[a-z0-9][a-z0-9._-]*/$")  # e.g. /_media/
 # Paths the main site owns; never route these away from it.
 RESERVED = ("/", "/zh/", "/en/", "/events/", "/api/", "/_next/", "/static/")
 
@@ -35,6 +36,7 @@ class Manifest:
     pages_project: str
     namespaces: list
     mounts: list
+    media: dict = field(default_factory=dict)
 
     def namespace_of(self, mount):
         return next(n for n in self.namespaces if mount.path.startswith(n["prefix"]))
@@ -53,6 +55,7 @@ def load(path=MANIFEST):
         pages_project=raw["pages_project"],
         namespaces=raw.get("namespaces") or [],
         mounts=mounts,
+        media=raw.get("media") or {},
     )
     errors = validate(m)
     if errors:
@@ -76,6 +79,13 @@ def validate(m):
         for b in prefixes:
             if a != b and b.startswith(a):
                 errors.append(f"namespaces {a!r} and {b!r} overlap")
+
+    if m.media:
+        missing = {"prefix", "bucket", "endpoint", "region", "min_bytes"} - m.media.keys()
+        if missing:
+            errors.append(f"media: missing {sorted(missing)}")
+        elif not MEDIA_PREFIX_RE.match(m.media["prefix"]) or any(m.media["prefix"].startswith(p) or p.startswith(m.media["prefix"]) for p in prefixes):
+            errors.append(f"media.prefix {m.media['prefix']!r}: must look like /name/ and not overlap a namespace")
 
     seen = []
     for mt in m.mounts:

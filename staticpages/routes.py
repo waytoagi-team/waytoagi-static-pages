@@ -44,8 +44,54 @@ def desired_rule(manifest, prefix):
     }
 
 
+MEDIA_TAG = "static-pages media (OSS)"
+
+
+def desired_media_rule(manifest, with_secret=True):
+    """<media.prefix>* on www -> private OSS bucket (S3 protocol, v4 signature), edge-cached for a year.
+
+    Object keys are content hashes, so the edge may cache forever and never needs a purge."""
+    md = manifest.media
+    kid, secret = creds.media_origin() if with_secret else ("", "")
+    return {
+        "RuleName": f"{manifest.host} {md['prefix']}* {MEDIA_TAG}",
+        "Description": [
+            f"Managed by waytoagi-static-pages (mounts.yaml media). Serve {md['prefix']}* on {manifest.host} from "
+            f"OSS bucket {md['bucket']} (content-addressed, immutable); other paths keep their origin."
+        ],
+        "Status": "enable",
+        "Branches": [{
+            "Condition": f"${{http.request.host}} in ['{manifest.host}'] and ${{http.request.uri.path}} in ['{md['prefix']}*']",
+            "Actions": [
+                {"Name": "ModifyOrigin", "ModifyOriginParameters": {
+                    # No OriginProtocol / port fields: EdgeOne rejects ports for COS / AWSS3 origins,
+                    # and OriginProtocol=https would require one.
+                    "OriginType": "AWSS3", "Origin": f"{md['bucket']}.{md['endpoint']}",
+                    "PrivateAccess": "on",
+                    "PrivateParameters": {"AccessKeyId": kid, "SecretAccessKey": secret,
+                                          "SignatureVersion": "v4", "Region": md["region"]},
+                }},
+                {"Name": "Cache", "CacheParameters": {
+                    "CustomTime": {"Switch": "on", "CacheTime": 31536000, "IgnoreCacheControl": "on"}}},
+                {"Name": "CacheKey", "CacheKeyParameters": {
+                    "FullURLCache": "off", "IgnoreCase": "off", "QueryString": {"Switch": "off"}}},
+                # Browser caching comes from the object's own Cache-Control metadata (set at upload):
+                # ModifyResponseHeader has no effect on AWSS3 origins (verified 2026-09-27).
+            ],
+        }],
+    }
+
+
+def _strip_secrets(obj):
+    if isinstance(obj, dict):
+        return {k: _strip_secrets(v) for k, v in obj.items() if k != "PrivateParameters"}
+    if isinstance(obj, list):
+        return [_strip_secrets(v) for v in obj]
+    return obj
+
+
 def _comparable(rule):
-    return {k: rule.get(k) for k in ("RuleName", "Description", "Status", "Branches")}
+    return _strip_secrets({k: rule.get(k) for k in ("RuleName", "Description", "Status", "Branches")})
 
 
 def current_rules(manifest, cli):
@@ -57,6 +103,11 @@ def plan(manifest, cli=None):
     rules = current_rules(manifest, cli)
     by_name = {r["RuleName"]: r for r in rules}
     actions, notes = [], []
+    if manifest.media:
+        want = desired_media_rule(manifest, with_secret=False)
+        have = by_name.get(want["RuleName"])
+        if not have or _comparable(have) != _comparable(want):
+            actions.append(("create" if not have else "modify", desired_media_rule(manifest), have))
     for ns in manifest.namespaces:
         want = desired_rule(manifest, ns["prefix"])
         have = by_name.get(want["RuleName"])
