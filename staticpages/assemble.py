@@ -71,10 +71,16 @@ def excluded(rel, patterns):
     return any(rel.startswith(p) if p.endswith("/") else fnmatch.fnmatch(rel, p) for p in patterns)
 
 
+# Documents that resolve relative URLs against their own address (HTML links/assets, CSS url()).
+# Behind a 302 to /_media/<hash> those references would break, so they always stay on Pages and
+# checks.run rejects them once they reach the offload threshold.
+STAY_ON_PAGES = (".html", ".htm", ".css")
+
+
 def offload(manifest, rel, data):
     """Files too large for EdgeOne Pages, or matching media.always, go to OSS instead of dist/."""
     md = manifest.media
-    if not md:
+    if not md or rel.lower().endswith(STAY_ON_PAGES):
         return False
     return len(data) >= md["min_bytes"] or any(fnmatch.fnmatch(rel.lower(), p) for p in md.get("always", []))
 
@@ -116,7 +122,7 @@ def assemble(manifest, out):
         target = out / m.key
         hashes, offloaded = {}, {}
         for rel, data in sorted(files.items()):
-            if rel != "index.html" and offload(manifest, rel, data):
+            if offload(manifest, rel, data):
                 key = media_key(manifest, data, rel)
                 MEDIA_CACHE.mkdir(parents=True, exist_ok=True)
                 cached = MEDIA_CACHE / os.path.basename(key)

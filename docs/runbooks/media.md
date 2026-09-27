@@ -19,6 +19,15 @@ www /_media/* → EdgeOne L7 规则（routes 管理）→ 私有 OSS（S3 协议
 - `build` 的敏感内容检查覆盖 Pages 文件和本次转存的 OSS 文件，25MB 限制只检查 Pages 文件。CI 和部署还执行 `python -m staticpages scan-secrets --gitleaks ./gitleaks`，扫描 `dist/` 及构建清单引用的 OSS 缓存文件，不设置扫描文件大小上限。
 - `media.prefix` 不能使用主站保留路径（如 `/api/`、`/_next/`、`/static/`），也不能与已登记 namespace 重叠。
 
+## HTML / CSS 不会转存：太大时 CI 拒绝
+
+`.html` / `.htm` / `.css` 会按自己的地址解析相对 URL（页面里的 `src="img/a.png"`、CSS 里的 `url(font.woff2)`），302 到 `/_media/<hash>` 之后这些引用都会失效。所以这类文件**始终留在 Pages**，一旦达到 `media.min_bytes`（20MB），CI 直接拒绝，并在报错里给出拆分建议：
+
+- 页面里内嵌的数据（大段 JSON、base64 图片/字体/视频、大型内联脚本）拆成同目录下的 `.json` / `.js` / 资源文件，按相对路径加载；必要时把一个页面拆成多个页面；
+- CSS 里内嵌的 base64 字体或图片拆成单独文件，用相对路径的 `url()` 引用。
+
+拆出来的大资源文件会被自动转存。注意：普通 `<script src>` 加载的 JS 可以转存；**带相对 `import` 的 ES module** 转存后会失效，这种 JS 应拆小，保持在 20MB 以下。
+
 ## 放不进 git 的文件（大于 100MB，或已经在别的 OSS 上）
 
 ```bash

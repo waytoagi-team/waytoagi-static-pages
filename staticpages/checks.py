@@ -3,7 +3,7 @@ import json
 import re
 import subprocess
 
-from .assemble import MEDIA_CACHE, STATE_PATH
+from .assemble import MEDIA_CACHE, STATE_PATH, STAY_ON_PAGES
 
 MAX_FILE_BYTES = 25 * 1024 * 1024
 
@@ -21,10 +21,29 @@ SECRET_PATTERNS = {
 ABS_REF = re.compile(rb"""(?:\b(?:src|href|action)\s*=\s*["']|url\(\s*["']?)(/(?!/)[^"')\s]*)""")
 
 
-def _check_file(f, rel, mount_path, pages=True):
+SPLIT_HINT = {
+    ".css": "move inline base64 fonts/images into separate files and reference them with relative url()",
+    "html": "move embedded data (inline JSON, base64 images/fonts/media, large inline scripts) into separate "
+            ".json/.js/asset files next to the page and load them by relative path, or split the page into "
+            "several pages",
+}
+
+
+def page_limit(manifest):
+    """HTML/CSS must stay on Pages; anything at the offload threshold would have been offloaded."""
+    return min(MAX_FILE_BYTES, manifest.media["min_bytes"]) if manifest.media else MAX_FILE_BYTES
+
+
+def _check_file(f, rel, mount_path, pages=True, html_limit=MAX_FILE_BYTES):
     errors = []
     data = f.read_bytes()
-    if pages and len(data) > MAX_FILE_BYTES:
+    stays = f.suffix.lower() in STAY_ON_PAGES
+    if pages and stays and len(data) >= html_limit:
+        hint = SPLIT_HINT[".css" if f.suffix.lower() == ".css" else "html"]
+        errors.append(f"{rel}: {len(data)} bytes; {f.suffix.lower()} files cannot be offloaded to OSS (their relative "
+                      f"URLs would break) and must be under {html_limit} bytes. Split it: {hint}. Large asset files "
+                      f"are then offloaded automatically.")
+    elif pages and len(data) > MAX_FILE_BYTES:
         errors.append(f"{rel}: {len(data)} bytes exceeds {MAX_FILE_BYTES}")
     for name, pat in SECRET_PATTERNS.items():
         if pat.search(data):
@@ -51,7 +70,7 @@ def run(manifest, out, state, mounts=None):
         base = out / m.key
         for f in sorted(p for p in base.rglob("*") if p.is_file()):
             rel = f"{m.path}{f.relative_to(base)}"
-            errors += _check_file(f, rel, m.path)
+            errors += _check_file(f, rel, m.path, html_limit=page_limit(manifest))
     paths = {m.path for m in selected}
     for mount_path, rel, f in offloaded_files(state):
         if mount_path in paths:

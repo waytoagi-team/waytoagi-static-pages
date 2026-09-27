@@ -21,7 +21,7 @@ sites/<name> ─┴─ mounts.yaml ──assemble──▶ dist/ ──EdgeOne P
 3. 提 PR。CI 会拉取源码组装 `dist/`，并做以下检查：凭证扫描、以 `/` 开头的绝对路径引用（挂到子路径后会失效）、在最终嵌套路径上的浏览器冒烟测试、和线上源站的差异对比。
 4. 合并后 `deploy` workflow 自动执行：部署到 Pages（按部署 ID 确认生效）→ 逐文件校验源站 → 只清变更挂载的 www 缓存 → 验证正式地址和主站回归 → 发飞书记录。
 
-**大文件**：超过 20MB 的文件和视频（`*.mp4` / `*.mov` / `*.webm`）会自动转存到 OSS，原路径 302 跳转到 `https://www.waytoagi.com/_media/<sha256>.<ext>`，页面里的引用不用改。超过 100MB、放不进 git 的文件，用 `scripts/media-import.py` 导入。详见 [docs/runbooks/media.md](docs/runbooks/media.md)。
+**大文件**：超过 20MB 的文件和视频（`*.mp4` / `*.mov` / `*.webm`）会自动转存到 OSS，原路径 302 跳转到 `https://www.waytoagi.com/_media/<sha256>.<ext>`，页面里的引用不用改。超过 100MB、放不进 git 的文件，用 `scripts/media-import.py` 导入。HTML/CSS 不会转存（相对路径会失效），达到 20MB 时 CI 会拒绝并提示拆分。详见 [docs/runbooks/media.md](docs/runbooks/media.md)。
 
 页面要求：
 - 目录里有 `index.html`；
