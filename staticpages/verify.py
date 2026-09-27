@@ -29,9 +29,23 @@ def get(url, follow=True):
         return f"error: {getattr(e, 'reason', e)}", None, b""
 
 
-def live_state(origin_url):
-    status, _, body = get(f"{origin_url}/{STATE_PATH}?t={int(time.time())}")
-    return json.loads(body) if status == 200 else {"mounts": {}}
+def live_state(origin_url, attempts=4):
+    """The state manifest the origin serves now. 404 = nothing deployed yet. Any other failure is reported and
+    treated as "everything changed", which is safe (redeploy + purge) but should not happen silently."""
+    for i in range(attempts):
+        status, _, body = get(f"{origin_url}/{STATE_PATH}?t={int(time.time())}")
+        if status == 200:
+            try:
+                return json.loads(body)
+            except ValueError:
+                status = f"200 but not JSON ({body[:80]!r})"
+        elif status == 404:
+            print(f"live state: {origin_url}/{STATE_PATH} not found (first deploy)")
+            return {"mounts": {}}
+        if i + 1 < attempts:
+            time.sleep(5 * (i + 1))
+    print(f"warning: cannot read live state from {origin_url}/{STATE_PATH} ({status}); treating all mounts as changed")
+    return {"mounts": {}}
 
 
 def diff(state, live):
