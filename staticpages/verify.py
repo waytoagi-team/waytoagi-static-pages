@@ -5,6 +5,7 @@ import time
 import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
+from urllib.parse import quote, urlencode
 
 from .assemble import STATE_PATH
 
@@ -71,10 +72,13 @@ def _check(url, expected, attempts=1):
 def verify_files(base_url, state, paths, bust):
     """Every file of the given mounts must be byte-identical to dist/."""
     jobs = []
+    query = urlencode({"v": bust})
     for path in paths:
         files = state["mounts"][path]["files"]
-        jobs.append((f"{base_url}{path}?v={bust}", files["index.html"]))
-        jobs += [(f"{base_url}{path}{rel}?v={bust}", h) for rel, h in files.items()]
+        jobs.append((f"{base_url}{quote(path)}?{query}", files["index.html"]))
+        # Encode filesystem names before constructing URLs: Chinese characters, spaces,
+        # and literal # / ? / % are valid filenames, not URL syntax.
+        jobs += [(f"{base_url}{quote(path + rel)}?{query}", h) for rel, h in files.items()]
     with ThreadPoolExecutor(8) as pool:
         return [e for e in pool.map(lambda j: _check(*j, attempts=5), jobs) if e]
 

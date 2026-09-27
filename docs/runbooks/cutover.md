@@ -2,6 +2,8 @@
 
 适用场景：一个前缀原来由旧规则回源别处（例如 kemengopc），现在要改为由本仓库的源站提供。
 
+**`/kemengopc/` 使用[专用步骤](kemengopc.md)**：其回源规则原位接管，补斜杠规则同时负责全站 HTTPS/www 跳转，不能按下面的通用步骤停用。
+
 ## 前置条件
 
 - 挂载页已经在 `mounts.yaml` 中，前缀状态为 `pending`，`python -m staticpages verify` 通过（新源站内容正确）。

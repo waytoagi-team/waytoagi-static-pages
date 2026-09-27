@@ -15,6 +15,8 @@ namespaces:
     status: active     # 2026-09-27 cut over: rule-3vi6scsksy31
   - prefix: /community-growth-deck/
     status: active     # 2026-09-27 cut over: rule-3vi6zsyyc7tr
+  - prefix: /kemengopc/
+    status: pending    # Stage the source before adopting rule-3umlkdq1unp5.
 
 mounts:
   - path: /usecase-atlas/opus5-5/
@@ -37,3 +39,18 @@ mounts:
     exclude: [README.md]   # repo docs, not part of the deck
     smoke:
       - expect: { selector: "section", min: 34 }
+
+  - path: /kemengopc/
+    owner: noodles
+    source:
+      repo: waytoagi-team/waytoagi-community-intro
+      ref: 4333ddbb1a914f6d4e6e1f206fb0b9c45aa9d7d9
+      dir: ""           # git archive <sha>: selects the repository root; "." does not.
+    exclude:
+      - community-growth-deck/
+      - usecase-atlas/
+      - scripts/
+      - preview-contact-sheet.png
+    smoke:
+      - expect: { selector: "#deck > section.slide", min: 28 }
+      - expect: { selector: "#nav button.dot", min: 28 }

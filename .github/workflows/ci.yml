@@ -18,6 +18,7 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt
+      - run: python -m unittest discover -s tests
       - run: python -m playwright install --with-deps chromium
 
       # Assemble dist/ from pinned sources, static checks, browser smoke test, diff against the live origin.
