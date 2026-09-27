@@ -29,7 +29,7 @@ namespaces:
   - prefix: /kemengopc/
     status: active     # 2026-09-27 adopted in place: rule-3umlkdq1unp5; shared redirect retained.
   - prefix: /d20/
-    status: pending    # Cut over after origin verification; adopt rule-3tbtnbo8njz2 in place.
+    status: active     # 2026-09-27 adopted in place: rule-3tbtnbo8njz2; shared entry redirects retained.
 
 mounts:
   - path: /usecase-atlas/opus5-5/
