@@ -1,0 +1,35 @@
+name: routes
+
+# www L7 rules for namespaces in mounts.yaml. Only needed when a namespace is added or its origin changes.
+# The `routes` environment must require reviewer approval; it holds the router CAM key.
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        type: choice
+        options: [plan, apply]
+        default: plan
+
+permissions:
+  contents: read
+
+concurrency:
+  group: routes
+  cancel-in-progress: false
+
+jobs:
+  routes:
+    runs-on: ubuntu-latest
+    environment: routes
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python -m staticpages routes ${{ inputs.action }}
+        env:
+          TENCENTCLOUD_ROUTER_SECRET_ID: ${{ secrets.TENCENTCLOUD_ROUTER_SECRET_ID }}
+          TENCENTCLOUD_ROUTER_SECRET_KEY: ${{ secrets.TENCENTCLOUD_ROUTER_SECRET_KEY }}

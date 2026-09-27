@@ -1,0 +1,10 @@
+.keys/
+.env
+.env.*
+dist/
+node_modules/
+.cache/
+.state/
+__pycache__/
+.edgeone/
+docs/internal/

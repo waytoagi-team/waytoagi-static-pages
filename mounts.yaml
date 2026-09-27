@@ -1,0 +1,39 @@
+# 挂载到 www.waytoagi.com 路径下的静态页清单。
+# 新增 / 更新页面：改这个文件提 PR。说明见 README.md。
+
+host: www.waytoagi.com
+zone_id: zone-3tbsf8e3cb9x            # waytoagi.com 的 EdgeOne 站点（L7 规则、清缓存）
+origin: static-origin.waytoagi.com    # 独立 EdgeOne Pages 项目的自定义域名
+pages_project: waytoagi-static-pages  # ProjectId makers-obe4szcie7gs
+
+# 每个前缀在 www 上对应一条 L7 回源规则（scripts: python -m staticpages routes）。
+# status:
+#   pending  规则还没切到本源站：部署后只验证源站，不清 www 缓存，也不验证正式地址
+#   active   规则已切：部署后清对应挂载的 www 缓存并验证正式地址
+namespaces:
+  - prefix: /usecase-atlas/
+    status: active     # 2026-09-27 cut over: rule-3vi6scsksy31
+  - prefix: /community-growth-deck/
+    status: active     # 2026-09-27 cut over: rule-3vi6zsyyc7tr
+
+mounts:
+  - path: /usecase-atlas/opus5-5/
+    owner: noodles
+    source:
+      repo: waytoagi-team/gallery
+      ref: b625fa7d7a11a951325dbf094ad653fdf37e2ded
+      dir: cases/models/claude-opus-5-5-usecases
+    smoke:
+      - expect: { selector: "#grid article.card", min: 24 }
+      - fill: { selector: "#q", value: HAProxy }
+        expect: { selector: "#grid article.card", min: 1 }
+
+  - path: /community-growth-deck/
+    owner: noodles
+    source:
+      repo: waytoagi-team/waytoagi-community-intro   # private: CI needs SOURCE_GITHUB_TOKEN
+      ref: 1be913d7eb348d333c54518c9fb56b1280049757
+      dir: community-growth-deck
+    exclude: [README.md]   # repo docs, not part of the deck
+    smoke:
+      - expect: { selector: "section", min: 34 }

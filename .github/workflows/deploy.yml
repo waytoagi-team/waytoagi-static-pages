@@ -1,0 +1,61 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+    paths: [mounts.yaml, "sites/**", "staticpages/**", requirements.txt]
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Deploy and verify every mount even if unchanged
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: pip install -r requirements.txt
+      - run: python -m playwright install --with-deps chromium
+
+      - name: gitleaks (dist/)
+        env:
+          SOURCE_GITHUB_TOKEN: ${{ secrets.SOURCE_GITHUB_TOKEN }}
+        run: |
+          python -m staticpages build
+          curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz | tar xz gitleaks
+          ./gitleaks dir dist --no-banner --redact
+
+      # build + smoke → Pages deploy (by deployment ID) → verify origin → purge changed www mounts
+      # → verify www + main-site regression → Feishu record
+      - run: python -m staticpages deploy --smoke ${{ inputs.force && '--force' || '' }}
+        env:
+          ORIGIN_URL: ${{ vars.ORIGIN_URL }}
+          EDGEONE_PAGES_API_TOKEN: ${{ secrets.EDGEONE_PAGES_API_TOKEN }}
+          TENCENTCLOUD_DEPLOYER_SECRET_ID: ${{ secrets.TENCENTCLOUD_DEPLOYER_SECRET_ID }}
+          TENCENTCLOUD_DEPLOYER_SECRET_KEY: ${{ secrets.TENCENTCLOUD_DEPLOYER_SECRET_KEY }}
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          SOURCE_GITHUB_TOKEN: ${{ secrets.SOURCE_GITHUB_TOKEN }}
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: deploy-record
+          path: .state/
+          if-no-files-found: ignore
