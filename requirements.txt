@@ -1,3 +1,4 @@
 pyyaml>=6
 tencentcloud-sdk-python-common>=3.0.1200
 playwright>=1.45
+oss2>=2.18

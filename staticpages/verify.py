@@ -98,6 +98,33 @@ def verify_prod(host, state, paths, attempts=6):
     return errors
 
 
+def verify_offloaded(base_url, host, state, paths):
+    """Offloaded files: the mount path 302s to https://<host>/<key> (checked on base_url, origin or www), and www serves
+    the object with the right size. Content was hashed at upload (x-oss-meta-sha256)."""
+    errors = []
+    for path in paths:
+        for rel, e in state["mounts"][path].get("offloaded", {}).items():
+            url = f"{base_url}{quote(path + rel)}"
+            for i in range(5):
+                status, headers, _ = get(url, follow=False)
+                loc = (headers.get("Location", "") if headers else "").split("?")[0]
+                if status == 302 and loc == f"https://{host}/{e['key']}":
+                    break
+                time.sleep(5 * (i + 1))
+            else:
+                errors.append(f"{url}: expected 302 to https://{host}/{e['key']}, got {status} {loc!r}")
+            media = f"https://{host}/{e['key']}"
+            req = urllib.request.Request(media, method="HEAD", headers={"User-Agent": UA})
+            try:
+                with urllib.request.urlopen(req, timeout=60) as resp:
+                    size = int(resp.headers.get("Content-Length", -1))
+                    if size != e["size"]:
+                        errors.append(f"{media}: size {size} != {e['size']}")
+            except Exception as ex:
+                errors.append(f"{media}: {ex}")
+    return errors
+
+
 REGRESSION_PATHS = ("/", "/zh", "/events")
 
 

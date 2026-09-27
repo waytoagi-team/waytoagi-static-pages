@@ -21,6 +21,8 @@ sites/<name> ─┴─ mounts.yaml ──assemble──▶ dist/ ──EdgeOne P
 3. 提 PR。CI 会拉取源码组装 `dist/`，并做以下检查：凭证扫描、以 `/` 开头的绝对路径引用（挂到子路径后会失效）、在最终嵌套路径上的浏览器冒烟测试、和线上源站的差异对比。
 4. 合并后 `deploy` workflow 自动执行：部署到 Pages（按部署 ID 确认生效）→ 逐文件校验源站 → 只清变更挂载的 www 缓存 → 验证正式地址和主站回归 → 发飞书记录。
 
+**大文件**：超过 20MB 的文件和视频（`*.mp4` / `*.mov` / `*.webm`）会自动转存到 OSS，原路径 302 跳转到 `https://www.waytoagi.com/_media/<sha256>.<ext>`，页面里的引用不用改。超过 100MB、放不进 git 的文件，用 `scripts/media-import.py` 导入。详见 [docs/runbooks/media.md](docs/runbooks/media.md)。
+
 页面要求：
 - 目录里有 `index.html`；
 - 资源用**相对路径**引用；
@@ -59,6 +61,8 @@ python -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/p
 | `TENCENTCLOUD_ROUTER_SECRET_ID/KEY` | `.keys/static-pages-router.csv` | L7 规则（仅 `routes`） |
 | `FEISHU_WEBHOOK` | — | 部署记录通知（可选） |
 | `SOURCE_GITHUB_TOKEN` | 本地用 `gh auth token` | 只读拉取私有源仓库（例如 waytoagi-community-intro） |
+| `ALIYUN_MEDIA_UPLOAD_KEY_ID/SECRET` | `.keys/static-pages-media-upload.csv` | 上传转存文件到 OSS（`_media/` 前缀） |
+| `ALIYUN_MEDIA_ORIGIN_KEY_ID/SECRET` | `.keys/static-pages-media-origin.csv` | 写入 `/_media/*` 回源规则的只读 OSS key（仅 `routes`） |
 | `BUMP_GITHUB_TOKEN` | — | `updates` workflow 创建 bump PR（本仓库 Contents + Pull requests 读写） |
 | `ORIGIN_URL`（GitHub variable） | `--origin-url` | 覆盖源站地址，自定义域名绑定前用预设域名 |
 
@@ -74,6 +78,6 @@ python -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/p
 mounts.yaml          唯一的挂载清单
 sites/               放在本仓库的页面
 staticpages/         流水线代码（assemble / checks / smoke / edgeone / verify / routes）
-scripts/             一次性运维脚本（bootstrap-cam.py、dns.py）
+scripts/             运维脚本（bootstrap-cam.py、bootstrap-ram.py、dns.py、pages-domain.py、media-import.py）
 docs/                设计、runbook（docs/internal/ 为本地内部记录，不提交）
 ```

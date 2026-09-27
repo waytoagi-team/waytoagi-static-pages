@@ -10,6 +10,10 @@ on:
         type: choice
         options: [plan, apply]
         default: plan
+      only:
+        description: Only rules whose name contains this text (e.g. /_media/); empty = all
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -29,7 +33,10 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt
-      - run: python -m staticpages routes ${{ inputs.action }}
+      - run: python -m staticpages routes ${{ inputs.action }} ${{ inputs.only && format('--only {0}', inputs.only) || '' }}
         env:
           TENCENTCLOUD_ROUTER_SECRET_ID: ${{ secrets.TENCENTCLOUD_ROUTER_SECRET_ID }}
           TENCENTCLOUD_ROUTER_SECRET_KEY: ${{ secrets.TENCENTCLOUD_ROUTER_SECRET_KEY }}
+          # Read-only OSS key written into the /_media/* origin rule.
+          ALIYUN_MEDIA_ORIGIN_KEY_ID: ${{ secrets.ALIYUN_MEDIA_ORIGIN_KEY_ID }}
+          ALIYUN_MEDIA_ORIGIN_KEY_SECRET: ${{ secrets.ALIYUN_MEDIA_ORIGIN_KEY_SECRET }}
