@@ -5,7 +5,7 @@ import time
 import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
-from urllib.parse import quote, urlencode
+from urllib.parse import quote, urlencode, urljoin, urlsplit
 
 from .assemble import STATE_PATH
 
@@ -52,7 +52,8 @@ def live_state(origin_url, attempts=4):
 def diff(state, live):
     """Mount paths whose content differs from what the origin currently serves."""
     new, old = state["mounts"], live.get("mounts", {})
-    changed = sorted(p for p in new if old.get(p, {}).get("tree") != new[p]["tree"])
+    config_changed = live.get("deployment_config") != state.get("deployment_config")
+    changed = sorted(p for p in new if config_changed or old.get(p, {}).get("tree") != new[p]["tree"])
     removed = sorted(p for p in old if p not in new)
     return {"changed": changed, "removed": removed}
 
@@ -84,17 +85,20 @@ def verify_files(base_url, state, paths, bust):
 
 
 def verify_prod(host, state, paths, attempts=6):
-    """The public URL without query string serves the new index.html; the bare path 308s to the slash form."""
+    """The public URL serves the new index.html; the bare path 308s without losing its query string."""
     errors = []
     for path in paths:
         expected = state["mounts"][path]["files"]["index.html"]
         err = _check(f"https://{host}{path}", expected, attempts=attempts)
         if err:
             errors.append(err)
-        status, headers, _ = get(f"https://{host}{path.rstrip('/')}", follow=False)
+        bare = f"https://{host}{path.rstrip('/')}?probe=1"
+        status, headers, _ = get(bare, follow=False)
         loc = headers.get("Location", "") if headers else ""
-        if status not in (301, 308) or not loc.split("?")[0].endswith(path):
-            errors.append(f"https://{host}{path.rstrip('/')}: expected 308 to {path}, got {status} {loc!r}")
+        target = urlsplit(urljoin(bare, loc))
+        expected = urlsplit(f"https://{host}{path}?probe=1")
+        if status != 308 or target != expected:
+            errors.append(f"{bare}: expected 308 to {expected.geturl()}, got {status} {loc!r}")
     return errors
 
 
