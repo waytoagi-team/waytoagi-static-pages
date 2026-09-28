@@ -6,7 +6,7 @@ from staticpages.assemble import edgeone_config, middleware_source
 
 
 class RedirectConfigTest(unittest.TestCase):
-    manifest = SimpleNamespace(mounts=[
+    manifest = SimpleNamespace(host="www.waytoagi.com", mounts=[
         SimpleNamespace(path="/usecase-atlas/opus5-5/"),
         SimpleNamespace(path="/deck/"),
     ])
@@ -21,8 +21,9 @@ class RedirectConfigTest(unittest.TestCase):
 
         self.assertIn('new Set(["/usecase-atlas/opus5-5", "/deck"])', source)
         self.assertIn('const url = new URL(request.url);', source)
-        self.assertIn('url.pathname += "/";', source)
-        self.assertIn('redirect(url.toString(), 308)', source)
+        self.assertIn('const target = new URL(url.pathname + url.search, "https://www.waytoagi.com");', source)
+        self.assertIn('target.pathname += "/";', source)
+        self.assertIn('redirect(target.toString(), 308)', source)
         self.assertEqual(
             json.loads(source.split("export const config = { matcher: ", 1)[1].split(" }", 1)[0]),
             ["/usecase-atlas/opus5-5", "/deck"],

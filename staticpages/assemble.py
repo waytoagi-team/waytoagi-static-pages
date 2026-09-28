@@ -99,13 +99,15 @@ def middleware_source(manifest):
     """Pages middleware for redirects that must retain the complete request query string."""
     paths = [m.path.rstrip("/") for m in manifest.mounts]
     encoded = json.dumps(paths, ensure_ascii=False)
+    public_origin = json.dumps(f"https://{manifest.host}")
     return f"""const trailingSlashPaths = new Set({encoded});
 
 export function middleware({{ request, next, redirect }}) {{
   const url = new URL(request.url);
   if (!trailingSlashPaths.has(url.pathname)) return next();
-  url.pathname += "/";
-  return redirect(url.toString(), 308);
+  const target = new URL(url.pathname + url.search, {public_origin});
+  target.pathname += "/";
+  return redirect(target.toString(), 308);
 }}
 
 export const config = {{ matcher: {encoded} }};
