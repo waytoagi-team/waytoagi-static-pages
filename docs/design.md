@@ -78,16 +78,17 @@ mounts.yaml            # 唯一的挂载清单
 sites/                 # 本仓库内联页面
 scripts/               # assemble / verify / purge / routes
 .github/workflows/     # 流水线
-edgeone.json           # 补斜杠跳转、缓存头
+edgeone.json           # 缓存头和大文件跳转
+middleware.js          # 保留查询参数的补斜杠跳转（构建产物）
 docs/                  # 设计与实施记录
 ```
 
 ### 2. 路由
 
 - www 上每个前缀一条 Host + Path 回源规则，初始为 `/usecase-atlas/*` 和 `/p/*`。
-- 308 补斜杠由 Pages 的 `edgeone.json` redirects 完成，不再每页一条规则。
+- 308 补斜杠由 Pages 的 `middleware.js` 完成并保留原查询参数；`edgeone.json` 静态跳转会丢查询参数，不能用于此处。
 - 新增前缀时由 `scripts/routes` 通过腾讯云 API 幂等执行：先 dry-run 输出差异，经 GitHub Environment 人工审批后应用。
-- 代价：前缀内不存在的路径返回 Pages 的 404，而不是主站 404。不带斜杠的地址由 www 统一补斜杠规则 308，保留查询参数。
+- 代价：前缀内不存在的路径返回 Pages 的 404，而不是主站 404。不带斜杠的挂载地址由 Pages 中间件 308，并保留查询参数。
 - EdgeOne 免费套餐 L7 规则上限 20 条：每个前缀 1 条，`/_media/*` 1 条；旧规则确认稳定后要尽快删除。
 
 ### 3. 流水线（GitHub Actions）
@@ -98,7 +99,7 @@ docs/                  # 设计与实施记录
 | 部署 | EdgeOne Pages CLI 部署 `dist/`，拿到 deploymentId |
 | 验证源站 | 变更挂载的 HTML SHA-256 与 `dist/` 一致 |
 | 清缓存 | 只对本次变更的挂载 `purge_prefix`，绝不清全站 |
-| 验证正式地址 | 无参数正式 URL hash 与源站一致；回归主站 `/`、`/zh`、`/events` 和相邻路径 |
+| 验证正式地址 | 正式 URL hash 与源站一致；补斜杠 308 保留探针参数；回归主站 `/`、`/zh`、`/events` 和相邻路径 |
 | 记录 | 源 SHA、部署 ID、清缓存任务 ID、hash 自动发飞书 |
 
 更新：改 `ref` 提 PR（可在源仓库加 workflow 自动开 bump PR）。回滚：`git revert` 清单变更，走同一流水线。
@@ -129,4 +130,4 @@ CAM 策略 JSON 见 [runbooks/create-credentials.md](runbooks/create-credentials
 - [ ] `community-growth-deck` 属于社区介绍站（不动）还是挂载页（一起迁）
 - [x] 源站域名：`static-origin.waytoagi.com`
 - [x] EdgeOne Pages CLI 部署能返回 deploymentId（实测 `dpiu7a79upmi`、`dpt6iiyficen`）
-- [x] Pages 308 跳转丢查询参数：接受（2026-09-27）。之后 www 的统一补斜杠 L7 规则（kemengopc 迁移时加入）在 EdgeOne 层 308 并保留查询参数，问题已不存在
+- [x] `edgeone.json` 的 Pages 308 跳转丢查询参数；改由 Pages 中间件构造完整目标 URL，保留查询参数（2026-09-28）

@@ -86,14 +86,30 @@ def media_key(manifest, data, rel):
 
 def edgeone_config(manifest, extra_redirects=()):
     return {
-        "redirects": [
-            {"source": m.path.rstrip("/"), "destination": m.path, "statusCode": 308} for m in manifest.mounts
-        ] + list(extra_redirects),
+        # Trailing-slash redirects live in middleware.js because edgeone.json redirects drop the request query.
+        "redirects": list(extra_redirects),
         # Same policy the www L7 rules enforce today: never serve stale HTML (WeChat WebView).
         "headers": [
             {"source": "/*", "headers": [{"key": "Cache-Control", "value": "no-cache"}]},
         ],
     }
+
+
+def middleware_source(manifest):
+    """Pages middleware for redirects that must retain the complete request query string."""
+    paths = [m.path.rstrip("/") for m in manifest.mounts]
+    encoded = json.dumps(paths, ensure_ascii=False)
+    return f"""const trailingSlashPaths = new Set({encoded});
+
+export function middleware({{ request, next, redirect }}) {{
+  const url = new URL(request.url);
+  if (!trailingSlashPaths.has(url.pathname)) return next();
+  url.pathname += "/";
+  return redirect(url.toString(), 308);
+}}
+
+export const config = {{ matcher: {encoded} }};
+"""
 
 
 ROOT_INDEX = b"""<!doctype html><meta charset="utf-8"><meta name="robots" content="noindex">
@@ -148,7 +164,12 @@ def assemble(manifest, out):
 
     (out / "index.html").write_bytes(ROOT_INDEX)
     (out / "robots.txt").write_text("User-agent: *\nDisallow: /\n")
-    (out / "edgeone.json").write_text(json.dumps(edgeone_config(manifest, redirects), indent=2) + "\n")
+    config = (json.dumps(edgeone_config(manifest, redirects), indent=2) + "\n").encode()
+    middleware = middleware_source(manifest).encode()
+    (out / "edgeone.json").write_bytes(config)
+    (out / "middleware.js").write_bytes(middleware)
+    # Configuration changes must trigger deployment even when every mounted source tree is unchanged.
+    state["deployment_config"] = sha256(config + b"\0" + middleware)
     (out / STATE_PATH).parent.mkdir(parents=True, exist_ok=True)
     (out / STATE_PATH).write_text(json.dumps(state, indent=2, sort_keys=True) + "\n")
     return state
