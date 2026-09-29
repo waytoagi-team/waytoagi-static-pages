@@ -78,6 +78,55 @@ class PublishChecksTest(unittest.TestCase):
             state = self.build({"index.html": b"x" * 63})
         self.assertNotIn("offloaded", state["mounts"]["/deck/"])
 
+    def assertBuildFails(self, files, *expected):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output), self.assertRaises(SystemExit):
+            self.build(files)
+        for text in expected:
+            self.assertIn(text, output.getvalue())
+        return output.getvalue()
+
+    def test_copied_page_without_its_assets_fails(self):
+        page = b'<img src="assets/a.png"><link rel="stylesheet" href="assets/site.css">'
+        self.assertBuildFails(
+            {"index.html": page, "assets/a.png": b"png", "assets/site.css": b"",
+             "copy/index.html": page},
+            "/deck/copy/index.html: reference 'assets/a.png' points to /deck/copy/assets/a.png, which is not published",
+            "/deck/copy/index.html: reference 'assets/site.css' points to /deck/copy/assets/site.css")
+
+    def test_valid_references_pass(self):
+        page = ('<a href="#top">x</a><a href="guide/">g</a><a href="guide">g2</a>'
+                '<img src="img/%E5%9B%BE.png?v=2#x" srcset="img/%E5%9B%BE.png 1x, img/big.png 2x">'
+                '<video poster="img/big.png" src="clip.mp4"></video>'
+                '<a href="https://example.com/a">e</a><a href="mailto:a@b.c">m</a><img src="data:image/png;base64,AA">'
+                '<a href="//cdn.example.com/x.js">p</a><a href="/deck/guide/">abs</a>'
+                '<a href="${item.url}">tpl</a><div style="background:url(img/big.png)"></div>'
+                '<style>.x{background:url("img/%E5%9B%BE.png")}</style>').encode()
+        with contextlib.redirect_stdout(io.StringIO()):
+            state = self.build({"index.html": page, "guide/index.html": b"<a href='../index.html'>up</a>",
+                                "img/图.png": b"png", "img/big.png": b"png", "clip.mp4": b"offloaded"})
+        self.assertIn("clip.mp4", state["mounts"]["/deck/"]["offloaded"])  # offloaded targets count as published
+
+    def test_reference_leaving_the_mount_fails(self):
+        self.assertBuildFails({"index.html": b'<a href="../other/">x</a>'},
+                              "/deck/index.html: reference '../other/' leaves /deck/")
+
+    def test_missing_css_url_and_import_fail(self):
+        self.assertBuildFails({"index.html": b'<link rel="stylesheet" href="s.css">',
+                               "s.css": b'@import "base.css"; .a{background:url(font.woff2)}'},
+                              "/deck/s.css: reference 'base.css' points to /deck/base.css",
+                              "/deck/s.css: reference 'font.woff2' points to /deck/font.woff2")
+
+    def test_allow_missing_skips_matching_targets(self):
+        self.manifest.mounts[0].allow_missing = ["generated/*"]
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.build({"index.html": b'<script src="generated/app.js"></script>'})
+
+    def test_many_missing_references_are_summarised_per_file(self):
+        page = "".join(f'<img src="m/{i}.png">' for i in range(8)).encode()
+        out = self.assertBuildFails({"index.html": page}, "/deck/index.html: ... and 3 more missing references")
+        self.assertEqual(out.count("which is not published"), 5)
+
     def test_scans_actual_cached_upload_bytes(self):
         with contextlib.redirect_stdout(io.StringIO()):
             state = self.build({"clip.mp4": b"clean media"})

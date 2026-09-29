@@ -22,6 +22,7 @@ class Mount:
     source: dict
     exclude: list = field(default_factory=list)
     smoke: list = field(default_factory=list)
+    allow_missing: list = field(default_factory=list)  # globs of mount-relative targets the ref check may skip
 
     @property
     def key(self):
