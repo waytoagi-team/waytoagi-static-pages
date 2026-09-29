@@ -65,6 +65,8 @@ mounts:
       - scripts/
       - preview-contact-sheet.png
       - middleware.js  # Legacy-host redirect belongs only to the old Pages project.
+      - AGENTS.md      # Repo guidance for agents; not page content.
+      - CLAUDE.md
     smoke:
       - expect: { selector: "#deck > section.slide", min: 28 }
       - expect: { selector: "#nav button.dot", min: 28 }
