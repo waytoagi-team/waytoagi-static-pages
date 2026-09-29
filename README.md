@@ -25,7 +25,7 @@ sites/<name> ─┴─ mounts.yaml ──assemble──▶ dist/ ──EdgeOne P
 
 页面要求：
 - 目录里有 `index.html`；
-- 资源用**相对路径**引用；
+- 资源用**相对路径**引用，而且被引用的文件必须随页面一起发布：CI 会检查 HTML 里的 `src` / `href` / `poster` / `srcset`、内联和 CSS 中的 `url()` / `@import`，指向不存在的文件（例如复制了页面却没带上资源）或跳出页面目录的 `../` 都会被拒绝；外链、`data:`、`#锚点` 和 JS 模板字符串不检查。确实需要的例外（例如运行时才生成的文件）写在该页面的 `allow_missing`（glob，相对页面目录）；
 - 点文件不会发布；
 - 可以在 `exclude` 里写额外要排除的文件。
 
