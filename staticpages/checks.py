@@ -1,7 +1,11 @@
 """Check every publish candidate; the Pages size limit applies only to dist/."""
+import fnmatch
+import html.parser
 import json
+import posixpath
 import re
 import subprocess
+from urllib.parse import unquote, urlsplit
 
 from .assemble import MEDIA_CACHE, STATE_PATH, STAY_ON_PAGES
 
@@ -71,6 +75,8 @@ def run(manifest, out, state, mounts=None):
         for f in sorted(p for p in base.rglob("*") if p.is_file()):
             rel = f"{m.path}{f.relative_to(base)}"
             errors += _check_file(f, rel, m.path, html_limit=page_limit(manifest))
+    for m in selected:
+        errors += missing_refs(m, out, state)
     paths = {m.path for m in selected}
     for mount_path, rel, f in offloaded_files(state):
         if mount_path in paths:
@@ -85,3 +91,99 @@ def scan_secrets(out, executable="gitleaks"):
     for target in targets:
         subprocess.run([executable, "dir", str(target), "--no-banner", "--redact",
                         "--max-target-megabytes", "0"], check=True)
+
+
+# ---- relative references ---------------------------------------------------------------------------
+
+URL_ATTRS = {"src", "href", "poster"}
+CSS_URL = re.compile(r"""url\(\s*(['"]?)([^'")]+)\1\s*\)|@import\s+(['"])([^'"]+)\3""")
+SCHEME = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*:")
+TEMPLATE = ("${", "{{", "<%", "' +", "\" +")
+
+
+class _RefParser(html.parser.HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.refs, self._in_style = [], False
+
+    def handle_starttag(self, tag, attrs):
+        for name, value in attrs:
+            if not value:
+                continue
+            if name in URL_ATTRS:
+                self.refs.append(value)
+            elif name == "srcset":
+                self.refs += [part.strip().split()[0] for part in value.split(",") if part.strip()]
+            elif name == "style":
+                self.refs += _css_refs(value)
+        self._in_style = tag == "style"
+
+    def handle_endtag(self, tag):
+        self._in_style = False
+
+    def handle_data(self, data):
+        if self._in_style:
+            self.refs += _css_refs(data)
+
+
+def _css_refs(text):
+    return [m.group(2) or m.group(4) for m in CSS_URL.finditer(text)]
+
+
+def _target(ref, file_rel, mount_path):
+    """Mount-relative path a reference points at, None if it is not ours to check, or '..' if it escapes."""
+    ref = ref.strip()
+    if (not ref or ref.startswith(("#", "?", "//")) or SCHEME.match(ref) or any(t in ref for t in TEMPLATE)):
+        return None
+    path = unquote(urlsplit(ref).path)
+    if not path:
+        return None
+    if path.startswith("/"):
+        if not path.startswith(mount_path):
+            return None  # reported by ABS_REF
+        return path[len(mount_path):]
+    joined = posixpath.normpath(posixpath.join(posixpath.dirname(file_rel), path))
+    if joined == ".." or joined.startswith("../"):
+        return ".."
+    target = "" if joined == "." else joined
+    return target + "/" if path.endswith("/") and target else target
+
+
+def _published(target, files):
+    if target in files:
+        return True
+    base = target.rstrip("/")
+    return (f"{base}/index.html" if base else "index.html") in files
+
+
+def missing_refs(mount, out, state):
+    """HTML/CSS references to files this mount does not publish (e.g. copies whose assets did not come along)."""
+    base = out / mount.key
+    files = {str(p.relative_to(base)) for p in base.rglob("*") if p.is_file()}
+    files |= set(state["mounts"].get(mount.path, {}).get("offloaded", {}))
+    errors = []
+    per_file_limit = 5
+    for f in sorted(p for p in base.rglob("*") if p.suffix.lower() in (".html", ".htm", ".css")):
+        file_errors = []
+        file_rel = str(f.relative_to(base))
+        text = f.read_text(encoding="utf-8", errors="replace")
+        if f.suffix.lower() == ".css":
+            refs = _css_refs(text)
+        else:
+            parser = _RefParser()
+            parser.feed(text)
+            refs = parser.refs
+        for ref in sorted(set(refs)):
+            target = _target(ref, file_rel, mount.path)
+            if target is None or any(fnmatch.fnmatch(target, g) for g in mount.allow_missing):
+                continue
+            if target == "..":
+                file_errors.append(f"{mount.path}{file_rel}: reference {ref!r} leaves {mount.path}; "
+                                   "link across mounts with an absolute https:// URL instead")
+            elif not _published(target, files):
+                file_errors.append(f"{mount.path}{file_rel}: reference {ref!r} points to {mount.path}{target}, "
+                                   "which is not published (missing, excluded, or a copied page without its assets)")
+        errors += file_errors[:per_file_limit]
+        if len(file_errors) > per_file_limit:
+            errors.append(f"{mount.path}{file_rel}: ... and {len(file_errors) - per_file_limit} more missing references")
+    return errors
