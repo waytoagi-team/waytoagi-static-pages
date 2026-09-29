@@ -54,6 +54,30 @@ class PublishChecksTest(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 self.build({"index.html": b"x" * 64})
 
+    def test_oversized_index_html_is_rejected_with_split_hint(self):
+        self.manifest.media["min_bytes"] = 64
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output), self.assertRaises(SystemExit):
+            self.build({"index.html": b"<p>" + b"x" * 100})
+        self.assertIn("/deck/index.html: 103 bytes; .html files cannot be offloaded", output.getvalue())
+        self.assertIn("Split it: move embedded data", output.getvalue())
+
+    def test_large_secondary_page_and_css_stay_on_pages_and_are_rejected(self):
+        self.manifest.media["min_bytes"] = 64
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output), self.assertRaises(SystemExit):
+            self.build({"指南.html": b"x" * 100, "site.css": b"x" * 100})
+        self.assertTrue((self.out / "deck/指南.html").exists())  # not offloaded behind a 302
+        self.assertIn("/deck/指南.html: 100 bytes; .html files cannot be offloaded", output.getvalue())
+        self.assertIn("/deck/site.css: 100 bytes; .css files cannot be offloaded", output.getvalue())
+        self.assertIn("relative url()", output.getvalue())
+
+    def test_html_just_under_threshold_passes(self):
+        self.manifest.media["min_bytes"] = 64
+        with contextlib.redirect_stdout(io.StringIO()):
+            state = self.build({"index.html": b"x" * 63})
+        self.assertNotIn("offloaded", state["mounts"]["/deck/"])
+
     def test_scans_actual_cached_upload_bytes(self):
         with contextlib.redirect_stdout(io.StringIO()):
             state = self.build({"clip.mp4": b"clean media"})
