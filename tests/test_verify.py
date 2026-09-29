@@ -6,9 +6,10 @@ import unittest
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from unittest.mock import patch
 from urllib.parse import parse_qs, urlsplit
 
-from staticpages.verify import verify_files
+from staticpages.verify import diff, verify_files, verify_prod
 
 
 class VerifyFilesTest(unittest.TestCase):
@@ -50,6 +51,46 @@ class VerifyFilesTest(unittest.TestCase):
                 server.shutdown()
                 server.server_close()
                 thread.join()
+
+
+class VerifyProdTest(unittest.TestCase):
+    state = {"mounts": {"/deck/": {"files": {"index.html": "hash"}}}}
+
+    @patch("staticpages.verify._check", return_value=None)
+    @patch("staticpages.verify.get")
+    def test_trailing_slash_redirect_preserves_probe_query(self, get, _check):
+        get.return_value = 308, {"Location": "/deck/?probe=1"}, b""
+
+        self.assertEqual(verify_prod("www.example.com", self.state, ["/deck/"], attempts=1), [])
+        get.assert_called_once_with("https://www.example.com/deck?probe=1", follow=False)
+
+    @patch("staticpages.verify._check", return_value=None)
+    @patch("staticpages.verify.get")
+    def test_trailing_slash_redirect_rejects_lost_query(self, get, _check):
+        get.return_value = 308, {"Location": "/deck/"}, b""
+
+        errors = verify_prod("www.example.com", self.state, ["/deck/"], attempts=1)
+
+        self.assertEqual(len(errors), 1)
+        self.assertIn("expected 308 to https://www.example.com/deck/?probe=1", errors[0])
+
+
+class DiffTest(unittest.TestCase):
+    def test_deployment_config_change_marks_all_mounts_changed(self):
+        mounts = {
+            "/a/": {"tree": "same"},
+            "/b/": {"tree": "same"},
+        }
+        state = {"deployment_config": "new", "mounts": mounts}
+        live = {"deployment_config": "old", "mounts": mounts}
+
+        self.assertEqual(diff(state, live), {"changed": ["/a/", "/b/"], "removed": []})
+
+    def test_matching_deployment_config_keeps_unchanged_mounts_unchanged(self):
+        mounts = {"/a/": {"tree": "same"}}
+        state = {"deployment_config": "same", "mounts": mounts}
+
+        self.assertEqual(diff(state, state), {"changed": [], "removed": []})
 
 
 if __name__ == "__main__":
