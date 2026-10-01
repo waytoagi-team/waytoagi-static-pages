@@ -1,10 +1,13 @@
 """Check every publish candidate; the Pages size limit applies only to dist/."""
 import fnmatch
+import hashlib
 import html.parser
 import json
 import posixpath
 import re
 import subprocess
+import tempfile
+from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
 from .assemble import MEDIA_CACHE, STATE_PATH, STAY_ON_PAGES
@@ -84,13 +87,44 @@ def run(manifest, out, state, mounts=None):
     return errors
 
 
+def checksum_scan_config(out, state):
+    """Allow only verified file-checksum lines in the generated manifest.
+
+    Names such as github_api.py look like credential identifiers to Gitleaks when
+    paired with a SHA-256. Keep scanning all published bytes and other metadata.
+    """
+    root = out.resolve()
+    lines = set()
+    for mount_path, mount in state["mounts"].items():
+        for rel, digest in mount["files"].items():
+            target = (root / mount_path.strip("/") / rel).resolve()
+            if not target.is_relative_to(root):
+                raise ValueError("Manifest checksum path leaves the publish directory")
+            if (not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest)
+                    or hashlib.sha256(target.read_bytes()).hexdigest() != digest):
+                raise ValueError(f"Manifest checksum does not match published file: {rel}")
+            lines.add(r"^\s*" + re.escape(json.dumps(rel)) + r":\s*"
+                      + re.escape(json.dumps(digest)) + r",?\s*$")
+    config = '[extend]\nuseDefault = true\n'
+    if lines:
+        config += ('[[rules]]\nid = "generic-api-key"\n[[rules.allowlists]]\n'
+                   'description = "Verified generated file checksum lines only"\n'
+                   'condition = "AND"\nregexTarget = "line"\n'
+                   'paths = ' + json.dumps(["^" + re.escape(str(root / STATE_PATH)) + "$"]) + '\n'
+                   'regexes = ' + json.dumps(sorted(lines)) + '\n')
+    return config
+
+
 def scan_secrets(out, executable="gitleaks"):
     """Run Gitleaks on dist/ and each current OSS candidate, with no file-size cutoff."""
     state = json.loads((out / STATE_PATH).read_text())
     targets = [out, *sorted({f for _, _, f in offloaded_files(state)})]
-    for target in targets:
-        subprocess.run([executable, "dir", str(target), "--no-banner", "--redact",
-                        "--max-target-megabytes", "0"], check=True)
+    with tempfile.TemporaryDirectory(prefix="staticpages-gitleaks-") as directory:
+        config = Path(directory) / "gitleaks.toml"
+        config.write_text(checksum_scan_config(out, state))
+        for target in targets:
+            subprocess.run([executable, "dir", str(target), "--no-banner", "--redact",
+                            "--max-target-megabytes", "0", "--config", str(config)], check=True)
 
 
 # ---- relative references ---------------------------------------------------------------------------

@@ -2,8 +2,10 @@
 import contextlib
 import io
 import json
+import re
 import subprocess
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -156,6 +158,38 @@ class PublishChecksTest(unittest.TestCase):
         self.assertEqual(calls, [self.out, current])
         # The scanner obtains its candidates from the build that is about to deploy.
         self.assertEqual(json.loads((self.out / assemble.STATE_PATH).read_text()), state)
+
+    def test_checksum_exception_is_bound_to_verified_line_and_manifest_path(self):
+        with contextlib.redirect_stdout(io.StringIO()):
+            state = self.build({"github_api.py": b"public collector"})
+        cfg = tomllib.loads(checks.checksum_scan_config(self.out, state))
+        rule = cfg["rules"][0]
+        allow = rule["allowlists"][0]
+        self.assertTrue(cfg["extend"]["useDefault"])
+        self.assertEqual(rule["id"], "generic-api-key")
+        self.assertEqual(allow["condition"], "AND")
+        self.assertEqual(allow["regexTarget"], "line")
+        digest = state["mounts"]["/deck/"]["files"]["github_api.py"]
+        self.assertTrue(any(re.search(p, f'    "github_api.py": "{digest}",') for p in allow["regexes"]))
+        self.assertFalse(any(re.search(p, f'    "api_key": "{digest}",') for p in allow["regexes"]))
+        self.assertTrue(any(re.search(p, str(self.out / assemble.STATE_PATH)) for p in allow["paths"]))
+        self.assertFalse(any(re.search(p, str(self.out / "deck/manifest.json")) for p in allow["paths"]))
+
+    def test_changed_file_cannot_receive_a_checksum_exception(self):
+        with contextlib.redirect_stdout(io.StringIO()):
+            state = self.build({"github_api.py": b"public collector"})
+        (self.out / "deck/github_api.py").write_bytes(b"changed after assembly")
+        with patch.object(checks.subprocess, "run") as scanner:
+            with self.assertRaisesRegex(ValueError, "checksum does not match"):
+                checks.scan_secrets(self.out)
+            scanner.assert_not_called()
+
+    def test_checksum_path_cannot_escape_publish_directory(self):
+        with contextlib.redirect_stdout(io.StringIO()):
+            state = self.build({})
+        state["mounts"]["/deck/"]["files"]["../../outside"] = "0" * 64
+        with self.assertRaisesRegex(ValueError, "leaves the publish directory"):
+            checks.checksum_scan_config(self.out, state)
 
 
 if __name__ == "__main__":
