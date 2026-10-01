@@ -10,6 +10,8 @@ from . import creds
 from .edgeone import teo
 
 RULE_TAG = "static-pages origin"
+IMAGE_EXTENSIONS = ['webp', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'avif', 'ico']
+IMAGE_CACHE_CONTROL = "public, max-age=604800"
 
 
 def rule_name(manifest, prefix):
@@ -40,6 +42,16 @@ def desired_rule(manifest, prefix):
                     {"Action": "set", "Name": "Expires", "Value": "0"},
                 ]}},
             ],
+            # Images may be cached by browsers for a week; HTML stays no-store (WeChat WebView must never
+            # show a stale page). Pages should version image URLs (?v=hash) when an image changes in place.
+            "SubRules": [{"Branches": [{
+                "Condition": f"lower(${{http.request.file_extension}}) in {IMAGE_EXTENSIONS}",
+                "Actions": [{"Name": "ModifyResponseHeader", "ModifyResponseHeaderParameters": {"HeaderActions": [
+                    {"Action": "set", "Name": "Cache-Control", "Value": IMAGE_CACHE_CONTROL},
+                    {"Action": "del", "Name": "Pragma"},
+                    {"Action": "del", "Name": "Expires"},
+                ]}}],
+            }]}],
         }],
     }
 

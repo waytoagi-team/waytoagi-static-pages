@@ -78,3 +78,17 @@ class RoutesTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ImageCacheSubRuleTests(unittest.TestCase):
+    def test_images_get_browser_cache_while_html_stays_no_store(self):
+        import types
+        rule = routes.desired_rule(types.SimpleNamespace(host="www.waytoagi.com", origin="o.example"), "/usecase-atlas/")
+        branch = rule["Branches"][0]
+        parent = {a["Name"]: a for a in branch["Actions"]}["ModifyResponseHeader"]
+        self.assertIn("no-store", parent["ModifyResponseHeaderParameters"]["HeaderActions"][0]["Value"])
+        sub = branch["SubRules"][0]["Branches"][0]
+        self.assertIn("'webp'", sub["Condition"])
+        self.assertNotIn("html", sub["Condition"])
+        values = {h["Name"]: h for h in sub["Actions"][0]["ModifyResponseHeaderParameters"]["HeaderActions"]}
+        self.assertEqual(values["Cache-Control"]["Value"], "public, max-age=604800")
