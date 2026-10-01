@@ -107,7 +107,7 @@ docs/                  # 设计与实施记录
 ### 4. 独立源站与凭证
 
 - 新 EdgeOne Pages 项目 `waytoagi-static-pages`（已创建：`makers-obe4szcie7gs`，中国站，预设域名 `waytoagi-static-pages-tisxqdfu.edgeone.cool`），绑定源站域名（暂定 `static-origin.waytoagi.com`，CNAME 在阿里云 DNS 手工加一次）。
-- 缓存：HTML `no-store`（延续微信 WebView 的处理），带 hash 的静态资源长缓存。
+- 缓存：HTML `no-store`（延续微信 WebView 的处理）；图片（webp/png/jpg/jpeg/gif/svg/avif/ico）在 L7 规则的子规则里改为 `public, max-age=604800`，页面原地替换图片时应给 URL 加 `?v=hash`；带 hash 的静态资源长缓存。
 - 凭证（GitHub Secrets；本地在 `.keys/`，已 gitignore；不在文档中记录任何密钥内容）：
 
 | 凭证 | 用途 | 权限 | 使用场景 |
