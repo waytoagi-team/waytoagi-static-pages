@@ -36,7 +36,7 @@ mounts:
     owner: noodles
     source:
       repo: waytoagi-team/gallery
-      ref: 7c722002e542cfb09479ea75ddd63aa782ff8113
+      ref: d0ad1927c0c83cf968dbbd9d503a3859bd8775ce
       dir: cases/models/claude-opus-5-5-usecases
     smoke:
       - expect: { selector: "#grid article.card", min: 24 }
