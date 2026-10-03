@@ -36,12 +36,23 @@ mounts:
     owner: noodles
     source:
       repo: waytoagi-team/gallery
-      ref: 4d172e7eff30a2c5a49269f1407b01ea4b9da260
-      dir: cases/models/claude-opus-5-5-usecases
+      ref: b9ae67008b8ce4a825fbd98b542bace12bee773e
+      dir: cases/models/claude-opus-5-5-usecases/public
     smoke:
       - expect: { selector: "#grid article.card", min: 24 }
       - fill: { selector: "#q", value: HAProxy }
         expect: { selector: "#grid article.card", min: 1 }
+
+
+  - path: /usecase-atlas/fable5-5/
+    owner: noodles
+    source:
+      repo: waytoagi-team/gallery
+      ref: b9ae67008b8ce4a825fbd98b542bace12bee773e
+      dir: cases/models/fable-5-5-usecases/public
+    smoke:
+      - expect: { selector: '#grid article.card, #grid .empty', min: 1 }
+      - expect: { selector: 'link[rel="canonical"][href="https://www.waytoagi.com/usecase-atlas/fable5-5/"]', min: 1 }
 
   - path: /community-growth-deck/
     owner: noodles
