@@ -44,6 +44,18 @@ mounts:
         expect: { selector: "#grid article.card", min: 1 }
 
 
+  - path: /usecase-atlas/fable5-2/
+    owner: noodles
+    source:
+      repo: waytoagi-team/gallery
+      ref: 2ba8891a6c7813b0aaad1108caa5acb34b3e30eb
+      dir: cases/models/fable-5-2-usecases/public
+    smoke:
+      - expect: { selector: '#grid article.card', min: 24 }
+      - expect: { selector: 'link[rel="canonical"][href="https://www.waytoagi.com/usecase-atlas/fable5-2/"]', min: 1 }
+      - fill: { selector: '#q', value: SVG }
+        expect: { selector: '#grid article.card', min: 1 }
+
   - path: /community-growth-deck/
     owner: noodles
     source:
