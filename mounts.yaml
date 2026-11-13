@@ -48,7 +48,7 @@ mounts:
     owner: noodles
     source:
       repo: waytoagi-team/gallery
-      ref: e6d597eca83d23f8401f34ec962c6e744168a84f
+      ref: f2bfceb99710de16a6028a764df1c0b1e3861043
       dir: cases/models/fable-5-2-usecases/public
     smoke:
       - expect: { selector: '#grid article.card', min: 24 }
