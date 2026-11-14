@@ -38,6 +38,10 @@ namespaces:
     status: active     # Approved cutover via shared rule-3xf7y5ibs6mv
     route_with: /kemeng-sci-fi-week/  # Same origin/cache policy; reuse its rule at the 20-rule limit.
 
+  - prefix: /douyin-ai-night-school/
+    status: pending
+    route_with: /kemeng-sci-fi-week/
+
 mounts:
   - path: /usecase-atlas/opus5-5/
     owner: noodles
@@ -129,3 +133,14 @@ mounts:
       - expect: { selector: "#deck > section.slide", min: 50 }
       - expect: { selector: "#controls #prev", min: 1 }
       - expect: { selector: "#controls #next", min: 1 }
+
+  - path: /douyin-ai-night-school/
+    owner: noodles
+    source:
+      repo: waytoagi-team/douyin-ai-night-school
+      ref: 3cc93d44cac74582961517ad6f5ddecdb874dbc0
+      dir: dist
+    smoke:
+      - expect: { selector: "[data-course-card]", min: 13 }
+      - fill: { selector: "#course-search", value: "开窍" }
+        expect: { selector: "[data-course-card]:not([hidden])", min: 1 }
