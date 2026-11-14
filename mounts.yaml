@@ -32,7 +32,7 @@ namespaces:
     status: active     # 2026-09-27 adopted in place: rule-3tbtnbo8njz2; shared entry redirects retained.
 
   - prefix: /kemeng-sci-fi-week/
-    status: pending
+    status: active     # 2026-11-15 cut over: rule-3xf7y5ibs6mv
 
 mounts:
   - path: /usecase-atlas/opus5-5/
