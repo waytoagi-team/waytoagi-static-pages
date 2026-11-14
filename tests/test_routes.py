@@ -92,3 +92,43 @@ class ImageCacheSubRuleTests(unittest.TestCase):
         self.assertNotIn("html", sub["Condition"])
         values = {h["Name"]: h for h in sub["Actions"][0]["ModifyResponseHeaderParameters"]["HeaderActions"]}
         self.assertEqual(values["Cache-Control"]["Value"], "public, max-age=604800")
+
+class SharedNamespaceTests(unittest.TestCase):
+    def setUp(self):
+        self.m = Manifest('www.example.com', 'zone', 'origin.example.com', 'pages',
+                          [{'prefix': '/deck/', 'status': 'active'}], [])
+        self.old = routes.desired_rule(self.m, '/deck/')
+        self.old['RuleId'] = 'existing-deck'
+        self.m.namespaces.append({'prefix': '/partner/', 'status': 'pending', 'route_with': '/deck/'})
+
+    def test_modify_existing_rule_and_idempotent_after_apply(self):
+        cli = Mock()
+        cli.call_json.return_value = {'Response': {'Rules': [self.old]}}
+        for only in (None, '/deck/', '/partner/'):
+            actions, notes = routes.plan(self.m, cli, only=only)
+            self.assertEqual(len(actions), 1)
+            kind, want, have = actions[0]
+            self.assertEqual((kind, have['RuleId']), ('modify', 'existing-deck'))
+            self.assertEqual(want['Branches'][0]['Condition'],
+                "${http.request.host} in ['www.example.com'] and ${http.request.uri.path} in ['/deck/*', '/deck', '/partner/*', '/partner']")
+            self.assertEqual(want['Branches'][0]['Actions'], self.old['Branches'][0]['Actions'])
+            self.assertEqual(want['Branches'][0]['SubRules'], self.old['Branches'][0]['SubRules'])
+            self.assertEqual(notes, [])
+        cli.call_json.return_value = {'Response': {'Rules': [{**want, 'RuleId': 'existing-deck'}]}}
+        self.assertEqual(routes.plan(self.m, cli, only='/partner/')[0], [])
+        self.assertEqual(routes.plan(self.m, cli, only='/other/')[0], [])
+
+    def test_shared_rule_rollback_removes_only_partner_paths(self):
+        self.m.namespaces.pop()
+        want = routes.desired_rule(self.m, '/deck/')
+        self.assertEqual(want, {k: v for k, v in self.old.items() if k != 'RuleId'})
+
+    def test_validate_unknown_self_and_chained_targets(self):
+        from staticpages.manifest import validate
+        self.assertEqual(validate(self.m), [])
+        for target in ('/missing/', '/partner/'):
+            self.m.namespaces[1]['route_with'] = target
+            self.assertTrue(validate(self.m))
+        self.m.namespaces[1]['route_with'] = '/deck/'
+        self.m.namespaces.append({'prefix': '/third/', 'status': 'pending', 'route_with': '/partner/'})
+        self.assertTrue(validate(self.m))

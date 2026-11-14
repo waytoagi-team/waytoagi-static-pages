@@ -18,18 +18,26 @@ def rule_name(manifest, prefix):
     return f"{manifest.host} {prefix}* {RULE_TAG}"
 
 
+def route_prefixes(manifest, prefix):
+    """A stable existing rule can serve additional explicitly declared namespaces."""
+    return [prefix] + [n["prefix"] for n in getattr(manifest, "namespaces", [])
+                       if n.get("route_with") == prefix]
+
+
 def desired_rule(manifest, prefix):
+    prefixes = route_prefixes(manifest, prefix)
+    paths = [path for p in prefixes for path in (p + "*", p.rstrip("/"))]
     return {
         "RuleName": rule_name(manifest, prefix),
         "Description": [
-            f"Managed by waytoagi-static-pages (mounts.yaml). Route {prefix}* on {manifest.host} to the "
+            f"Managed by waytoagi-static-pages (mounts.yaml). Route {', '.join(p + '*' for p in prefixes)} on {manifest.host} to the "
             f"static-pages Makers origin {manifest.origin}, preserving the URI; other paths keep the main-site origin."
         ],
         "Status": "enable",
         "Branches": [{
             # The bare prefix too, so a top-level mount (/deck/) gets its /deck -> /deck/ redirect from Pages.
             "Condition": f"${{http.request.host}} in ['{manifest.host}'] and "
-                         f"${{http.request.uri.path}} in ['{prefix}*', '{prefix.rstrip('/')}']",
+                         f"${{http.request.uri.path}} in {paths!r}",
             "Actions": [
                 {"Name": "ModifyOrigin", "ModifyOriginParameters": {
                     "OriginType": "IPDomain", "Origin": manifest.origin,
@@ -136,8 +144,11 @@ def plan(manifest, cli=None, *, only=None, refresh_media_credentials=False):
         if not have or refresh_media_credentials or _comparable(have) != _comparable(want):
             actions.append(("create" if not have else "modify", want, have))
     for ns in manifest.namespaces:
+        if ns.get("route_with"):
+            continue
+        prefixes = route_prefixes(manifest, ns["prefix"])
         want = desired_rule(manifest, ns["prefix"])
-        if not selected(want):
+        if not selected(want) and not any(only in p for p in prefixes):
             continue
         have = by_name.get(want["RuleName"])
         if not have:
@@ -149,7 +160,7 @@ def plan(manifest, cli=None, *, only=None, refresh_media_credentials=False):
             if r["RuleName"] == want["RuleName"] or r.get("Status") != "enable":
                 continue
             cond = json.dumps(r.get("Branches"), ensure_ascii=False)
-            if f"'{manifest.host}'" in cond and ns["prefix"] in cond:
+            if f"'{manifest.host}'" in cond and any(p in cond for p in prefixes):
                 notes.append(f"overlapping rule {r['RuleId']} ({r['RuleName']}, priority {r['RulePriority']}) "
                              f"also matches {ns['prefix']}; preserve required redirects and retire only "
                              "origin rules that this namespace replaces")

@@ -81,3 +81,14 @@ staticpages/         流水线代码（assemble / checks / smoke / edgeone / ver
 scripts/             运维脚本（bootstrap-cam.py、bootstrap-ram.py、dns.py、pages-domain.py、media-import.py）
 docs/                设计、runbook（docs/internal/ 为本地内部记录，不提交）
 ```
+
+### 共享静态源站规则
+
+当 L7 规则额度已满、多个 namespace 使用相同源站与缓存策略时，新 namespace 可填写
+`route_with: /已有前缀/`。工具保留已有规则的名称和 ID，在同一条件中列出两个前缀的裸路径与子路径。
+`routes plan/apply --only=/新前缀/` 会选择这条共享规则；不会新建第二条。
+目标必须是已声明且不再引用其他规则的 namespace，不支持引用链。
+
+移除共享路径时先将它的 namespace 与挂载移出清单，按保留的主前缀 plan/apply，恢复原条件。
+**不要停用整个共享规则**，否则另一个已上线页面也会下线。原来已有独立规则的路径迁移到共享规则
+需要单独核对旧规则，不能只填写 route_with 后直接 apply。

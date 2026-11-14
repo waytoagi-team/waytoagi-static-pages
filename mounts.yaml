@@ -34,6 +34,10 @@ namespaces:
   - prefix: /kemeng-sci-fi-week/
     status: active     # 2026-11-15 cut over: rule-3xf7y5ibs6mv
 
+  - prefix: /partnership/
+    status: pending
+    route_with: /kemeng-sci-fi-week/  # Same origin/cache policy; reuse its rule at the 20-rule limit.
+
 mounts:
   - path: /usecase-atlas/opus5-5/
     owner: noodles
@@ -113,3 +117,15 @@ mounts:
       - expect: { selector: "#prev", min: 1 }
       - expect: { selector: "#next", min: 1 }
       - expect: { selector: "video", min: 1 }
+
+  - path: /partnership/
+    owner: noodles
+    source:
+      repo: waytoagi-team/waytoagi-partnership-20261109
+      ref: 2477cc35f36284cae0a6c7e9c2f260fc30084dc1
+      dir: ""
+    exclude: ["部署说明.txt", deployment-manifest.json]
+    smoke:
+      - expect: { selector: "#deck > section.slide", min: 50 }
+      - expect: { selector: "#controls #prev", min: 1 }
+      - expect: { selector: "#controls #next", min: 1 }
