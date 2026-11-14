@@ -35,7 +35,7 @@ namespaces:
     status: active     # 2026-11-15 cut over: rule-3xf7y5ibs6mv
 
   - prefix: /partnership/
-    status: pending
+    status: active     # Approved cutover via shared rule-3xf7y5ibs6mv
     route_with: /kemeng-sci-fi-week/  # Same origin/cache policy; reuse its rule at the 20-rule limit.
 
 mounts:
