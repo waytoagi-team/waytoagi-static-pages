@@ -76,6 +76,16 @@ def validate(m):
         if p in RESERVED:
             errors.append(f"namespace {p!r}: reserved by the main site")
         prefixes.append(p)
+    if len(set(prefixes)) != len(prefixes):
+        errors.append("namespace prefixes must be unique")
+    by_prefix = {n["prefix"]: n for n in m.namespaces if "prefix" in n}
+    for n in m.namespaces:
+        target = n.get("route_with")
+        if target is not None:
+            if target not in by_prefix or target == n.get("prefix"):
+                errors.append(f"namespace {n.get('prefix')!r}: route_with must reference another declared namespace")
+            elif by_prefix[target].get("route_with") is not None:
+                errors.append(f"namespace {n.get('prefix')!r}: route_with chains are not allowed")
     for a in prefixes:
         for b in prefixes:
             if a != b and b.startswith(a):
