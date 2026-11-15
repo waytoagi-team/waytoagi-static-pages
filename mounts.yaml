@@ -39,7 +39,7 @@ namespaces:
     route_with: /kemeng-sci-fi-week/  # Same origin/cache policy; reuse its rule at the 20-rule limit.
 
   - prefix: /douyin-ai-night-school/
-    status: pending
+    status: active
     route_with: /kemeng-sci-fi-week/
 
 mounts:
