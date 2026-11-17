@@ -142,7 +142,7 @@ mounts:
     owner: noodles
     source:
       repo: waytoagi-team/douyin-ai-night-school
-      ref: b86d78be18b042c3d30655e2029993d989a557f6
+      ref: 6ce1219f09e8666b43a10563d31d11e39dd14582
       dir: dist
     smoke:
       - expect: { selector: "[data-course-card]", min: 14 }
