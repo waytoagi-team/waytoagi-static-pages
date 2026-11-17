@@ -19,3 +19,10 @@
 AJ 更新 index.html 和 assets 后通过固定 source.ref 的 PR 发布。
 首次入口回滚仅从清单移除本 namespace 和 mount，再按 /kemeng-sci-fi-week/ plan/apply，
 绝不能禁用共享规则。内容回滚恢复之前的 source.ref 并重新发布。
+
+## 2026-11-17 切流验收
+
+- 用户批准 routes run 44019388809，执行成功；回源令牌删除配置已补齐，status 无遗漏。
+- 源站及正式地址文件、转存视频验证通过；补斜杠、查询参数和主站回归通过。
+- 正式页面 74 页，上一页/下一页、选页、#26 深链接和讲稿功能通过，无 JavaScript 错误。
+- 激活后运行 deploy force=true，完成缓存刷新与流水线正式验证。
