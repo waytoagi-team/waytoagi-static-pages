@@ -43,7 +43,7 @@ namespaces:
     route_with: /kemeng-sci-fi-week/
 
   - prefix: /ai-capability-overflow/
-    status: pending
+    status: active
     route_with: /kemeng-sci-fi-week/
 
 mounts:
