@@ -42,6 +42,10 @@ namespaces:
     status: active
     route_with: /kemeng-sci-fi-week/
 
+  - prefix: /ai-capability-overflow/
+    status: pending
+    route_with: /kemeng-sci-fi-week/
+
 mounts:
   - path: /usecase-atlas/opus5-5/
     owner: noodles
@@ -144,3 +148,17 @@ mounts:
       - expect: { selector: "[data-course-card]", min: 13 }
       - fill: { selector: "#course-search", value: "开窍" }
         expect: { selector: "[data-course-card]:not([hidden])", min: 1 }
+
+  - path: /ai-capability-overflow/
+    owner: AJ
+    source:
+      repo: waytoagi-team/aj-ai-course
+      ref: 0226e701799d5844d439054cf571d5774909e1f0
+      dir: ""
+    exclude: [README.md, src/, "使用说明.txt", "讲稿大纲.md"]
+    smoke:
+      - expect: { selector: "section.slide", min: 74 }
+      - expect: { selector: "#page-picker option", min: 74 }
+      - expect: { selector: "#prev", min: 1 }
+      - expect: { selector: "#next", min: 1 }
+      - expect: { selector: "video", min: 1 }
