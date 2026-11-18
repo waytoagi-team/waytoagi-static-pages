@@ -36,7 +36,8 @@ def auth_args():
 
 def fetch_tree(repo, ref, subdir):
     """Return {relpath: bytes} for repo@ref:subdir. Shallow-fetches exactly one commit."""
-    cache = CACHE / repo.replace("/", "__")
+    # Separate shallow histories when mounts pin different commits of one repository.
+    cache = CACHE / repo.replace("/", "__") / ref
     if not (cache / ".git").exists():
         cache.mkdir(parents=True, exist_ok=True)
         git("init", "-q", cwd=cache)
