@@ -59,6 +59,18 @@ mounts:
         expect: { selector: "#grid article.card", min: 1 }
 
 
+  - path: /usecase-atlas/gpt6-2/
+    owner: noodles
+    source:
+      repo: waytoagi-team/gallery
+      ref: 0b3b4e6a72004d8dbece743dbd8860f1049b0276
+      dir: cases/models/gpt-6-2-usecases/public
+    smoke:
+      - expect: { selector: '#grid article.card', min: 10 }
+      - expect: { selector: 'link[rel="canonical"][href="https://www.waytoagi.com/usecase-atlas/gpt6-2/"]', min: 1 }
+      - fill: { selector: '#q', value: Jarvis }
+        expect: { selector: '#grid article.card', min: 1 }
+
   - path: /usecase-atlas/fable5-2/
     owner: noodles
     source:
