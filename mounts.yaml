@@ -63,7 +63,7 @@ mounts:
     owner: noodles
     source:
       repo: waytoagi-team/gallery
-      ref: 0b3b4e6a72004d8dbece743dbd8860f1049b0276
+      ref: c0bc76387622a6c5d6a18c924c628a9903fcd049
       dir: cases/models/gpt-6-2-usecases/public
     smoke:
       - expect: { selector: '#grid article.card', min: 10 }
