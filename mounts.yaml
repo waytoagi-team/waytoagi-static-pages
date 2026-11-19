@@ -51,7 +51,7 @@ mounts:
     owner: noodles
     source:
       repo: waytoagi-team/gallery
-      ref: 6e554db5923207e00d036e9a66244bf663ff7c11
+      ref: 1aa5a44568c7afbd0e89436dab3837c6c1dc9e8e
       dir: cases/models/claude-opus-5-5-usecases/public
     smoke:
       - expect: { selector: "#grid article.card", min: 24 }
@@ -63,7 +63,7 @@ mounts:
     owner: noodles
     source:
       repo: waytoagi-team/gallery
-      ref: 2472a537c13de13a323c9a3e765ffd54c398db18
+      ref: 1aa5a44568c7afbd0e89436dab3837c6c1dc9e8e
       dir: cases/models/gpt-6-2-usecases/public
     smoke:
       - expect: { selector: '#grid article.card', min: 10 }
@@ -75,7 +75,7 @@ mounts:
     owner: noodles
     source:
       repo: waytoagi-team/gallery
-      ref: 678d9cac83bfcdfa1ef7e87a92f5b9d8f7bd06af
+      ref: 1aa5a44568c7afbd0e89436dab3837c6c1dc9e8e
       dir: cases/models/fable-5-2-usecases/public
     smoke:
       - expect: { selector: '#grid article.card', min: 24 }
