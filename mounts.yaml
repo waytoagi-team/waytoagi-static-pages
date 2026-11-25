@@ -142,7 +142,7 @@ mounts:
     owner: noodles
     source:
       repo: waytoagi-team/waytoagi-partnership-20261109
-      ref: 2477cc35f36284cae0a6c7e9c2f260fc30084dc1
+      ref: 6ed9846fbf60a5fbfb2a19f1f50607f73208a850
       dir: ""
     exclude: ["部署说明.txt", deployment-manifest.json]
     smoke:
