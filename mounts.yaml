@@ -25,7 +25,8 @@ namespaces:
   - prefix: /usecase-atlas/
     status: active     # 2026-09-27 cut over: rule-3vi6scsksy31
   - prefix: /community-growth-deck/
-    status: active     # 2026-09-27 cut over: rule-3vi6zsyyc7tr
+    status: active
+    route_with: /kemeng-sci-fi-week/  # Same origin and cache policy; use rule-3xf7y5ibs6mv.
   - prefix: /kemengopc/
     status: active     # 2026-09-27 adopted in place: rule-3umlkdq1unp5; shared redirect retained.
   - prefix: /d20/
